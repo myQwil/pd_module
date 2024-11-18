@@ -1,0 +1,11 @@
+.{
+    .name = "pd_module",
+    .version = "0.1.0",
+    .paths = .{
+        "src",
+        "LICENSE",
+        "README.md",
+        "build.zig",
+        "build.zig.zon",
+    },
+}
