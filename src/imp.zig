@@ -2,6 +2,8 @@ const pd = @import("pd.zig");
 const cnv = @import("canvas.zig");
 const strlen = @cImport({ @cInclude("string.h"); }).strlen;
 
+pub const Error = Class.Error;
+
 const Pd = pd.Pd;
 const GObj = pd.GObj;
 const GPointer = pd.GPointer;
@@ -26,6 +28,12 @@ pub const MethodEntry = extern struct {
 
 pub const Class = extern struct {
    const Self = @This();
+
+	pub const Error = error {
+		ClassPd,
+		ClassNew,
+	};
+	const Err = Self.Error;
 
 	pub const fnBang = ?*const fn (*Pd) callconv(.C) void;
 	pub const fnPointer = ?*const fn (*Pd, *GPointer) callconv(.C) void;
@@ -174,8 +182,8 @@ pub const Class = extern struct {
 	pub const setFreeFn = class_setfreefn;
 	extern fn class_setfreefn(*Self, fnFree) void;
 
-	pub fn pd(self: *Self) !*Pd {
-		return pd_new(self) orelse error.ClassPd;
+	pub fn pd(self: *Self) Err!*Pd {
+		return pd_new(self) orelse Err.ClassPd;
 	}
 	extern fn pd_new(*Self) ?*Pd;
 
@@ -206,10 +214,10 @@ pub const Class = extern struct {
 		size: usize,
 		opt: Class.Options,
 		comptime args: []const Atom.Type,
-	) !*Self {
+	) Err!*Self {
 		return @call(.auto, classNew,
 			.{ sym, newm, freem, size, opt.toInt() } ++ Atom.Type.tuple(args))
-			orelse error.ClassNew;
+			orelse Err.ClassNew;
 	}
 	extern fn class_new(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Self;
 	extern fn class_new64(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Self;

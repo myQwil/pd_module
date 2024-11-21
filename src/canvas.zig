@@ -5,6 +5,7 @@ const Bool = c_uint;
 /// zero on success, otherwise represents an error
 const Result = c_int;
 
+pub const Error = GList.Error;
 
 const Atom = pd.Atom;
 const Float = pd.Float;
@@ -114,6 +115,11 @@ const Tick = extern struct {    // where to put ticks on x or y axes
 
 pub const GList = extern struct {
 	const Self = @This();
+
+	pub const Error = error {
+		GListOpen,
+	};
+	const Err = Self.Error;
 
 	pub const MotionFn = ?*const fn (*anyopaque, Float, Float, Float) callconv(.C) void;
 	pub const KeyFn = ?*const fn (*anyopaque, *Symbol, Float) callconv(.C) void;
@@ -369,9 +375,12 @@ pub const GList = extern struct {
 		name: [:0]const u8, ext: [:0]const u8,
 		dirresult: [:0]u8, nameresult: *[*]u8,
 		size: u32, bin: bool,
-	) i32 {
-		return canvas_open(
-			self, name.ptr, ext.ptr, dirresult.ptr, nameresult, size, @intFromBool(bin));
+	) Err!void {
+		if (canvas_open(self, name.ptr, ext.ptr, dirresult.ptr, nameresult,
+			size, @intFromBool(bin)) < 0)
+		{
+			return Err.GListOpen;
+		}
 	}
 	extern fn canvas_open(*const Self, [*:0]const u8, [*:0]const u8,
 		[*:0]u8, *[*]u8, c_uint, Bool) Result;

@@ -7,7 +7,7 @@ Module for [Pd](https://puredata.info/) externals written in [Zig](https://zigla
 First, update your `build.zig.zon`:
 
 ```
-zig fetch --save https://github.com/myQwil/pd_module/archive/refs/tags/v0.1.0.tar.gz
+zig fetch --save https://github.com/myQwil/pd_module/archive/refs/tags/v0.1.1.tar.gz
 ```
 
 Next, add this snippet to your `build.zig` script:

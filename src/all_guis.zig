@@ -1,6 +1,8 @@
 const pd = @import("pd.zig");
 const cnv = @import("canvas.zig");
 
+pub const Error = Gui.Error;
+
 const Class = @import("imp.zig").Class;
 const Atom = pd.Atom;
 const Float = pd.Float;
@@ -92,6 +94,11 @@ pub const InitSymArgs = packed struct(u32) {
 
 pub const Gui = extern struct {
 	const Self = @This();
+
+	pub const Error = error {
+		GuiNew,
+	};
+	const Err = Self.Error;
 
 	obj: pd.Object,
 	glist: *GList,
@@ -243,8 +250,8 @@ pub const Gui = extern struct {
 	}
 	extern fn iemgui_dialog(*Self, [*]*Symbol, c_uint, [*]Atom) c_uint;
 
-	pub fn new(cls: *Class) !*Self {
-		return iemgui_new(cls) orelse error.IemNew;
+	pub fn new(cls: *Class) Err!*Self {
+		return iemgui_new(cls) orelse Err.GuiNew;
 	}
 	extern fn iemgui_new(*Class) ?*Self;
 };
