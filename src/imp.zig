@@ -154,10 +154,10 @@ pub const Class = extern struct {
 	pub const setDrawCommand = class_setdrawcommand;
 	extern fn class_setdrawcommand(*Self) void;
 
-	pub fn doMainSignalIn(self: *Self, onset: i32) void {
+	pub fn doMainSignalIn(self: *Self, onset: u32) void {
 		class_domainsignalin(self, onset);
 	}
-	extern fn class_domainsignalin(*Self, c_int) void;
+	extern fn class_domainsignalin(*Self, c_uint) void;
 
 	pub const setSaveFn = class_setsavefn;
 	extern fn class_setsavefn(*Self, fnSave) void;

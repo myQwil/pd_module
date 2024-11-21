@@ -237,10 +237,11 @@ pub const Gui = extern struct {
 	}
 	extern fn iemgui_setdialogatoms(*Self, c_uint, [*]Atom) void;
 
-	pub fn dialog(self: *Self, srl: []*Symbol, av: []Atom) c_int {
-		return iemgui_dialog(self, srl.ptr, @intCast(av.len), av.ptr);
+	/// Returns a sendable/receivable bit mask.
+	pub fn dialog(self: *Self, srl: []*Symbol, av: []Atom) u2 {
+		return @intCast(iemgui_dialog(self, srl.ptr, @intCast(av.len), av.ptr));
 	}
-	extern fn iemgui_dialog(*Self, [*]*Symbol, c_uint, [*]Atom) c_int;
+	extern fn iemgui_dialog(*Self, [*]*Symbol, c_uint, [*]Atom) c_uint;
 
 	pub fn new(cls: *Class) !*Self {
 		return iemgui_new(cls) orelse error.IemNew;

@@ -4,6 +4,11 @@ pub const cnv = @import("canvas.zig");
 pub const iem = @import("all_guis.zig");
 const strlen = @cImport({ @cInclude("string.h"); }).strlen;
 
+/// non-zero on success/true
+const Bool = c_uint;
+/// zero on success, otherwise represents an error
+const Result = c_int;
+
 pub extern const pd_compatibilitylevel: c_int;
 
 pub const Float = std.meta.Float(@import("options").float_size);
@@ -119,11 +124,15 @@ pub const BinBuf = opaque {
 	}
 	extern fn binbuf_duplicate(*const Self) ?*Self;
 
+	pub fn len(self: *const Self) u32 {
+		return binbuf_getnatom(self);
+	}
+	extern fn binbuf_getnatom(*const Self) c_uint;
+
 	pub fn vec(self: *Self) []Atom {
 		return binbuf_getvec(self)[0..binbuf_getnatom(self)];
 	}
 	extern fn binbuf_getvec(*const Self) [*]Atom;
-	extern fn binbuf_getnatom(*const Self) c_uint;
 
 	pub fn fromText(txt: [:0]const u8) !*Self {
 		const self = try Self.new();
@@ -136,9 +145,9 @@ pub const BinBuf = opaque {
 	/// Convert a binbuf to text. No null termination.
 	pub fn text(self: *const Self) []u8 {
 		var ptr: [*]u8 = undefined;
-		var len: c_uint = undefined;
-		binbuf_gettext(self, &ptr, &len);
-		return ptr[0..len];
+		var n: c_uint = undefined;
+		binbuf_gettext(self, &ptr, &n);
+		return ptr[0..n];
 	}
 	extern fn binbuf_gettext(*const Self, *[*]u8, *c_uint) void;
 
@@ -195,7 +204,7 @@ pub const BinBuf = opaque {
 		if (binbuf_read(self, filename.ptr, dirname.ptr, @intFromBool(crflag)) != 0)
 			return error.BinBufRead;
 	}
-	extern fn binbuf_read(*Self, [*:0]const u8, [*:0]const u8, c_uint) c_uint;
+	extern fn binbuf_read(*Self, [*:0]const u8, [*:0]const u8, c_uint) Result;
 
 	pub fn readViaCanvas(
 		self: *Self,
@@ -207,7 +216,7 @@ pub const BinBuf = opaque {
 			return error.BinBufReadViaCanvas;
 	}
 	extern fn binbuf_read_via_canvas(
-		*Self, [*:0]const u8, *const cnv.GList, c_uint) c_uint;
+		*Self, [*:0]const u8, *const cnv.GList, c_uint) Result;
 
 	pub fn write(
 		self: *Self,
@@ -218,13 +227,13 @@ pub const BinBuf = opaque {
 		if (binbuf_write(self, filename.ptr, dirname.ptr, @intFromBool(crflag)) != 0)
 			return error.BinBufWrite;
 	}
-	extern fn binbuf_write(*const Self, [*:0]const u8, [*:0]const u8, c_uint) c_uint;
+	extern fn binbuf_write(*const Self, [*:0]const u8, [*:0]const u8, c_uint) Result;
 
 	pub fn resize(self: *Self, newsize: usize) !void {
 		if (binbuf_resize(self, @intCast(newsize)) == 0)
 			return error.BinBufResize;
 	}
-	extern fn binbuf_resize(*Self, c_uint) c_uint;
+	extern fn binbuf_resize(*Self, c_uint) Bool;
 
 	pub fn new() !*Self {
 		return binbuf_new() orelse error.BinBufNew;
@@ -370,7 +379,7 @@ pub const GArray = opaque {
 		return if (garray_getfloatwords(self, &len, &ptr) != 0)
 			ptr[0..len] else error.GArrayBadTemplate;
 	}
-	extern fn garray_getfloatwords(*Self, *c_uint, vec: *[*]Word) c_int;
+	extern fn garray_getfloatwords(*Self, *c_uint, vec: *[*]Word) Bool;
 };
 
 
@@ -431,7 +440,7 @@ pub const GPointer = extern struct {
 	pub fn isValid(self: *Self, headok: bool) bool {
 		return (gpointer_check(self, @intFromBool(headok)) != 0);
 	}
-	extern fn gpointer_check(*const Self, headok: c_int) c_int;
+	extern fn gpointer_check(*const Self, headok: c_int) Bool;
 };
 
 
@@ -890,7 +899,7 @@ pub const unlock = sys_unlock;
 extern fn sys_unlock() void;
 
 pub const tryLock = sys_trylock;
-extern fn sys_trylock() c_int;
+extern fn sys_trylock() Result;
 
 pub const hostFontSize = sys_hostfontsize;
 extern fn sys_hostfontsize(fontsize: c_uint, zoom: c_uint) c_uint;
@@ -910,7 +919,7 @@ extern fn sys_fontheight(fontsize: c_uint) c_uint;
 pub fn isAbsolutePath(dir: [:0]const u8) bool {
 	return (sys_isabsolutepath(dir.ptr) != 0);
 }
-extern fn sys_isabsolutepath([*:0]const u8) c_uint;
+extern fn sys_isabsolutepath([*:0]const u8) Bool;
 
 pub const currentDir = canvas_getcurrentdir;
 extern fn canvas_getcurrentdir() *Symbol;
@@ -922,7 +931,7 @@ extern fn canvas_getcurrentdir() *Symbol;
 pub fn suspendDsp() bool {
 	return (canvas_suspend_dsp() != 0);
 }
-extern fn canvas_suspend_dsp() c_uint;
+extern fn canvas_suspend_dsp() Bool;
 
 pub fn resumeDsp(old_state: bool) void {
 	canvas_resume_dsp(@intFromBool(old_state));
@@ -942,7 +951,7 @@ extern fn pd_getcanvaslist() *cnv.GList;
 pub fn dspState() bool {
 	return (pd_getdspstate() != 0);
 }
-extern fn pd_getdspstate() c_uint;
+extern fn pd_getdspstate() Bool;
 
 
 // ----------------------------------- Value -----------------------------------
@@ -961,13 +970,13 @@ pub const value = struct {
 		if (value_getfloat(sym, f) != 0)
 			return error.ValueGet;
 	}
-	extern fn value_getfloat(*Symbol, *Float) c_int;
+	extern fn value_getfloat(*Symbol, *Float) Result;
 
 	pub fn set(sym: *Symbol, f: Float) !void {
 		if (value_setfloat(sym, f) != 0)
 			return error.ValueSet;
 	}
-	extern fn value_setfloat(*Symbol, Float) c_int;
+	extern fn value_setfloat(*Symbol, Float) Result;
 };
 
 
@@ -1056,6 +1065,9 @@ pub fn eventNumber() u32 {
 }
 extern fn sched_geteventno() c_uint;
 
+/// sys_idlehook is a hook the user can fill in to grab idle time.  Return
+/// nonzero if you actually used the time; otherwise we're really really idle and
+/// will now sleep.
 pub extern var sys_idlehook: ?*const fn () callconv(.C) c_int;
 
 pub const plusPerform = plus_perform;
@@ -1236,7 +1248,7 @@ pub const Instance = extern struct {
 
 	pub const main = &pd_maininstance;
 };
-pub extern var pd_maininstance: Instance;
+pub extern const pd_maininstance: Instance;
 
 pub const max_string = 1000;
 pub const max_arg = 5;
