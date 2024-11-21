@@ -6,7 +6,7 @@ const strlen = @cImport({ @cInclude("string.h"); }).strlen;
 
 pub extern const pd_compatibilitylevel: c_int;
 
-pub const Float = f32;
+pub const Float = std.meta.Float(@import("options").float_size);
 pub const Sample = Float;
 
 pub const Method = ?*const fn () callconv(.C) void;
