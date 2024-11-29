@@ -220,22 +220,22 @@ pub const BinBuf = opaque {
 
 	pub fn read(
 		self: *Self,
-		filename: [:0]const u8,
-		dirname: [:0]const u8,
+		filename: [*:0]const u8,
+		dirname: [*:0]const u8,
 		crflag: bool,
 	) Err!void {
-		if (binbuf_read(self, filename.ptr, dirname.ptr, @intFromBool(crflag)) != 0)
+		if (binbuf_read(self, filename, dirname, @intFromBool(crflag)) != 0)
 			return Err.BinBufRead;
 	}
 	extern fn binbuf_read(*Self, [*:0]const u8, [*:0]const u8, c_uint) Result;
 
 	pub fn readViaCanvas(
 		self: *Self,
-		filename: [:0]const u8,
+		filename: [*:0]const u8,
 		canvas: *const cnv.GList,
 		crflag: bool,
 	) Err!void {
-		if (binbuf_read_via_canvas(self, filename.ptr, canvas, @intFromBool(crflag)) != 0)
+		if (binbuf_read_via_canvas(self, filename, canvas, @intFromBool(crflag)) != 0)
 			return Err.BinBufReadViaCanvas;
 	}
 	extern fn binbuf_read_via_canvas(
@@ -243,11 +243,11 @@ pub const BinBuf = opaque {
 
 	pub fn write(
 		self: *Self,
-		filename: [:0]const u8,
-		dirname: [:0]const u8,
+		filename: [*:0]const u8,
+		dirname: [*:0]const u8,
 		crflag: bool,
 	) Err!void {
-		if (binbuf_write(self, filename.ptr, dirname.ptr, @intFromBool(crflag)) != 0)
+		if (binbuf_write(self, filename, dirname, @intFromBool(crflag)) != 0)
 			return Err.BinBufWrite;
 	}
 	extern fn binbuf_write(*const Self, [*:0]const u8, [*:0]const u8, c_uint) Result;
@@ -360,12 +360,12 @@ pub const dsp = struct {
 	pub fn addScalarCopy(in: [*]Float, out: [*]Sample, n: usize) void {
 		dsp_add_scalarcopy(in, out, @intCast(n));
 	}
-	extern fn dsp_add_scalarcopy(in: [*]Float, out: [*]Sample, n: c_uint) void;
+	extern fn dsp_add_scalarcopy([*]Float, [*]Sample, c_uint) void;
 
 	pub fn addZero(out: [*]Sample, n: usize) void {
 		dsp_add_zero(out, @intCast(n));
 	}
-	extern fn dsp_add_zero(out: [*]Sample, n: c_uint) void;
+	extern fn dsp_add_zero([*]Sample, c_uint) void;
 };
 
 
@@ -729,14 +729,14 @@ pub const Pd = extern struct {
 	pub const parentWidget = pd_getparentwidget;
 	extern fn pd_getparentwidget(*Self) ?*const cnv.parent.WidgetBehavior;
 
-	pub fn vStub(
+	pub fn stub(
 		self: *Self,
-		dest: [:0]const u8,
+		dest: [*:0]const u8,
 		key: *anyopaque,
-		fmt: [:0]const u8,
+		fmt: [*:0]const u8,
 		args: anytype
 	) void {
-		@call(.auto, pdgui_stub_vnew, .{ self, dest.ptr, key, fmt.ptr } ++ args);
+		@call(.auto, pdgui_stub_vnew, .{ self, dest, key, fmt } ++ args);
 	}
 	extern fn pdgui_stub_vnew(*Self, [*:0]const u8, *anyopaque, [*:0]const u8, ...) void;
 
@@ -965,8 +965,8 @@ extern fn sys_fontwidth(fontsize: c_uint) c_uint;
 pub const fontHeight = sys_fontheight;
 extern fn sys_fontheight(fontsize: c_uint) c_uint;
 
-pub fn isAbsolutePath(dir: [:0]const u8) bool {
-	return (sys_isabsolutepath(dir.ptr) != 0);
+pub fn isAbsolutePath(dir: [*:0]const u8) bool {
+	return (sys_isabsolutepath(dir) != 0);
 }
 extern fn sys_isabsolutepath([*:0]const u8) Bool;
 
@@ -1057,20 +1057,18 @@ pub const font: [*:0]u8 = @extern([*:0]u8, .{ .name = "sys_font" });
 pub const font_weight: [*:0]u8 = @extern([*:0]u8, .{ .name = "sys_fontweight" });
 
 pub const post = struct {
-	pub fn do(fmt: [:0]const u8, args: anytype) void {
-		@call(.auto, post_, .{ fmt.ptr } ++ args);
+	pub fn do(fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, post_, .{ fmt } ++ args);
 	}
 	const post_ = @extern(
 		*const fn([*:0]const u8, ...) callconv(.C) void, .{ .name = "post" });
 
-	pub fn start(fmt: [:0]const u8, args: anytype) void {
-		@call(.auto, startpost, .{ fmt.ptr } ++ args);
+	pub fn start(fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, startpost, .{ fmt } ++ args);
 	}
 	extern fn startpost([*:0]const u8, ...) void;
 
-	pub fn string(str: [:0]const u8) void {
-		poststring(str.ptr);
-	}
+	pub const string = poststring;
 	extern fn poststring([*:0]const u8) void;
 
 	pub const float = postfloat;
@@ -1084,14 +1082,14 @@ pub const post = struct {
 	pub const end = endpost;
 	extern fn endpost() void;
 
-	pub fn bug(fmt: [:0]const u8, args: anytype) void {
-		@call(.auto, bug_, .{ fmt.ptr } ++ args);
+	pub fn bug(fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, bug_, .{ fmt } ++ args);
 	}
 	const bug_ = @extern(
 		*const fn([*:0]const u8, ...) callconv(.C) void, .{ .name = "bug" });
 
-	pub fn err(self: ?*const anyopaque, fmt: [:0]const u8, args: anytype) void {
-		@call(.auto, pd_error, .{ self, fmt.ptr } ++ args);
+	pub fn err(self: ?*const anyopaque, fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, pd_error, .{ self, fmt } ++ args);
 	}
 	extern fn pd_error(?*const anyopaque, fmt: [*:0]const u8, ...) void;
 
@@ -1106,10 +1104,10 @@ pub const post = struct {
 	pub fn log(
 		obj: ?*const anyopaque,
 		lvl: LogLevel,
-		fmt: [:0]const u8,
+		fmt: [*:0]const u8,
 		args: anytype
 	) void {
-		@call(.auto, logpost, .{ obj, lvl, fmt.ptr } ++ args);
+		@call(.auto, logpost, .{ obj, lvl, fmt } ++ args);
 	}
 	extern fn logpost(?*const anyopaque, LogLevel, [*:0]const u8, ...) void;
 };
@@ -1163,23 +1161,23 @@ pub const mayer = struct {
 	pub fn ifft(n: usize, real: [*]Sample, imag: [*]Sample) void {
 		mayer_ifft(@intCast(n), real, imag);
 	}
-	extern fn mayer_ifft(n: c_uint, real: [*]Sample, imag: [*]Sample) void;
+	extern fn mayer_ifft(c_uint, [*]Sample, [*]Sample) void;
 
 	pub fn realfft(real: []Sample) void {
 		mayer_realfft(@intCast(real.len), real.ptr);
 	}
-	extern fn mayer_realfft(n: c_uint, real: [*]Sample) void;
+	extern fn mayer_realfft(c_uint, [*]Sample) void;
 
 	pub fn realifft(real: []Sample) void {
-		mayer_realifft(real.len, real.ptr);
+		mayer_realifft(@intCast(real.len), real.ptr);
 	}
-	extern fn mayer_realifft(n: c_uint, real: [*]Sample) void;
+	extern fn mayer_realifft(c_uint, [*]Sample) void;
 };
 
 pub fn fft(buf: []Float, inverse: bool) void {
 	pd_fft(buf.ptr, @intCast(buf.len), @intFromBool(inverse));
 }
-extern fn pd_fft(buf: *Float, n_points: c_uint, inverse: c_uint) void;
+extern fn pd_fft([*]Float, c_uint, Bool) void;
 
 const ushift = std.meta.Int(.unsigned, @log2(@as(f32, @bitSizeOf(usize))));
 pub fn ulog2(n: usize) ushift {

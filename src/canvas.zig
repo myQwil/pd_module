@@ -325,17 +325,17 @@ pub const GList = extern struct {
 	pub fn drawIoFor(
 		self: *Self, ob: *Object,
 		first_time: bool,
-		tag: [:0]const u8,
+		tag: [*:0]const u8,
 		x1: i32, y1: i32,
 		x2: i32, y2: i32,
 	) void {
-		glist_drawiofor(self, ob, @intFromBool(first_time), tag.ptr, x1, y1, x2, y2);
+		glist_drawiofor(self, ob, @intFromBool(first_time), tag, x1, y1, x2, y2);
 	}
 	extern fn glist_drawiofor(
 		*Self, *Object, c_uint, [*:0]const u8, c_int, c_int, c_int, c_int) void;
 
-	pub fn eraseIoFor(self: *Self, ob: *Object, tag: [:0]const u8) void {
-		glist_eraseiofor(self, ob, tag.ptr);
+	pub fn eraseIoFor(self: *Self, ob: *Object, tag: [*:0]const u8) void {
+		glist_eraseiofor(self, ob, tag);
 	}
 	extern fn glist_eraseiofor(*Self, *Object, [*:0]const u8) void;
 
@@ -372,11 +372,11 @@ pub const GList = extern struct {
 	/// global path.
 	pub fn open(
 		self: *const Self,
-		name: [:0]const u8, ext: [:0]const u8,
-		dirresult: [:0]u8, nameresult: *[*]u8,
+		name: [*:0]const u8, ext: [*:0]const u8,
+		dirresult: [*:0]u8, nameresult: *[*]u8,
 		size: u32, bin: bool,
 	) Err!void {
-		if (canvas_open(self, name.ptr, ext.ptr, dirresult.ptr, nameresult,
+		if (canvas_open(self, name, ext, dirresult, nameresult,
 			size, @intFromBool(bin)) < 0)
 		{
 			return Err.GListOpen;
