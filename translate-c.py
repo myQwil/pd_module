@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+"""
+Old way of translating C functions.
+Everything has since been translated manually, but this method
+of translating can still be useful as a frame of reference.
+"""
+
 import re
 import subprocess
 
