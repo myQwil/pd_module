@@ -227,7 +227,7 @@ pub const BinBuf = opaque {
 		if (binbuf_read(self, filename, dirname, @intFromBool(crflag)) != 0)
 			return Err.BinBufRead;
 	}
-	extern fn binbuf_read(*Self, [*:0]const u8, [*:0]const u8, c_uint) Result;
+	extern fn binbuf_read(*Self, [*:0]const u8, [*:0]const u8, Bool) Result;
 
 	pub fn readViaCanvas(
 		self: *Self,
@@ -239,7 +239,7 @@ pub const BinBuf = opaque {
 			return Err.BinBufReadViaCanvas;
 	}
 	extern fn binbuf_read_via_canvas(
-		*Self, [*:0]const u8, *const cnv.GList, c_uint) Result;
+		*Self, [*:0]const u8, *const cnv.GList, Bool) Result;
 
 	pub fn write(
 		self: *Self,
@@ -250,7 +250,7 @@ pub const BinBuf = opaque {
 		if (binbuf_write(self, filename, dirname, @intFromBool(crflag)) != 0)
 			return Err.BinBufWrite;
 	}
-	extern fn binbuf_write(*const Self, [*:0]const u8, [*:0]const u8, c_uint) Result;
+	extern fn binbuf_write(*const Self, [*:0]const u8, [*:0]const u8, Bool) Result;
 
 	pub fn resize(self: *Self, newsize: u32) Err!void {
 		if (binbuf_resize(self, @intCast(newsize)) == 0)
@@ -279,7 +279,7 @@ pub fn realizeDollSym(sym: *Symbol, av: []const Atom, tonew: bool) Error!*Symbol
 	return binbuf_realizedollsym(sym, @intCast(av.len), av.ptr, @intFromBool(tonew))
 		orelse Error.RealizeDollSym;
 }
-extern fn binbuf_realizedollsym(*Symbol, c_uint, [*]const Atom, c_uint) ?*Symbol;
+extern fn binbuf_realizedollsym(*Symbol, c_uint, [*]const Atom, Bool) ?*Symbol;
 
 
 // ----------------------------------- Clock -----------------------------------
@@ -307,7 +307,7 @@ pub const Clock = opaque {
 	pub fn setUnit(self: *Self, timeunit: f64, in_samples: bool) void {
 		clock_setunit(self, timeunit, @intFromBool(in_samples));
 	}
-	extern fn clock_setunit(*Self, f64, c_uint) void;
+	extern fn clock_setunit(*Self, f64, Bool) void;
 
 	pub fn new(owner: *anyopaque, func: Method) Err!*Self {
 		return clock_new(owner, func) orelse Err.ClockNew;
@@ -329,7 +329,7 @@ extern fn clock_getsystimeafter(delaytime: f64) f64;
 pub fn timeSinceWithUnits(prevsystime: f64, units: f64, in_samples: bool) f64 {
 	return clock_gettimesincewithunits(prevsystime, units, @intFromBool(in_samples));
 }
-extern fn clock_gettimesincewithunits(f64, f64, c_uint) f64;
+extern fn clock_gettimesincewithunits(f64, f64, Bool) f64;
 
 
 // ------------------------------------ Dsp ------------------------------------
@@ -402,7 +402,7 @@ pub const GArray = opaque {
 	pub fn setSaveInPatch(self: *Self, saveit: bool) void {
 		garray_setsaveit(self, @intFromBool(saveit));
 	}
-	extern fn garray_setsaveit(*Self, c_uint) void;
+	extern fn garray_setsaveit(*Self, Bool) void;
 
 	pub const glist = garray_getglist;
 	extern fn garray_getglist(*Self) *cnv.GList;
@@ -474,7 +474,7 @@ pub const GPointer = extern struct {
 	pub fn isValid(self: *Self, headok: bool) bool {
 		return (gpointer_check(self, @intFromBool(headok)) != 0);
 	}
-	extern fn gpointer_check(*const Self, headok: c_int) Bool;
+	extern fn gpointer_check(*const Self, headok: Bool) Bool;
 };
 
 
@@ -985,7 +985,7 @@ extern fn canvas_suspend_dsp() Bool;
 pub fn resumeDsp(old_state: bool) void {
 	canvas_resume_dsp(@intFromBool(old_state));
 }
-extern fn canvas_resume_dsp(c_uint) void;
+extern fn canvas_resume_dsp(Bool) void;
 
 /// this is equivalent to suspending and resuming in one step.
 pub const updateDsp = canvas_update_dsp;
