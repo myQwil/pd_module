@@ -950,20 +950,30 @@ extern fn sys_unlock() void;
 pub const tryLock = sys_trylock;
 extern fn sys_trylock() Result;
 
-pub const hostFontSize = sys_hostfontsize;
-extern fn sys_hostfontsize(fontsize: c_uint, zoom: c_uint) c_uint;
+pub fn hostFontSize(fontsize: u32, zoom: u32) u32 {
+	return sys_hostfontsize(fontsize, zoom);
+}
+extern fn sys_hostfontsize(c_uint, c_uint) c_uint;
 
-pub const zoomFontWidth = sys_zoomfontwidth;
-extern fn sys_zoomfontwidth(fontsize: c_uint, zoom: c_uint, worstcase: c_uint) c_uint;
+pub fn zoomFontWidth(fontsize: u32, zoom: u32, worstcase: u32) u32 {
+	return sys_zoomfontwidth(fontsize, zoom, worstcase);
+}
+extern fn sys_zoomfontwidth(c_uint, c_uint, c_uint) c_uint;
 
-pub const zoomFontHeight = sys_zoomfontheight;
-extern fn sys_zoomfontheight(fontsize: c_uint, zoom: c_uint, worstcase: c_uint) c_uint;
+pub fn zoomFontHeight(fontsize: u32, zoom: u32, worstcase: u32) u32 {
+	return sys_zoomfontheight(fontsize, zoom, worstcase);
+}
+extern fn sys_zoomfontheight(c_uint, c_uint, c_uint) c_uint;
 
-pub const fontWidth = sys_fontwidth;
-extern fn sys_fontwidth(fontsize: c_uint) c_uint;
+pub fn fontWidth(fontsize: u32) u32 {
+	return sys_fontwidth(fontsize);
+}
+extern fn sys_fontwidth(c_uint) c_uint;
 
-pub const fontHeight = sys_fontheight;
-extern fn sys_fontheight(fontsize: c_uint) c_uint;
+pub fn fontHeight(fontsize: u32) u32 {
+	return sys_fontheight(fontsize);
+}
+extern fn sys_fontheight(c_uint) c_uint;
 
 pub fn isAbsolutePath(dir: [*:0]const u8) bool {
 	return (sys_isabsolutepath(dir) != 0);
