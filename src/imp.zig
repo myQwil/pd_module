@@ -79,7 +79,7 @@ pub const Class = extern struct {
 		no_promote_sig: bool,
       /// don't promote the main (left) inlet to signals
 		no_promote_left: bool,
-		_padding: u1,
+		unused: u1,
 	},
 	fn_free: fnFree,
 

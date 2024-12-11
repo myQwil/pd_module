@@ -60,7 +60,7 @@ pub const DrawFunctions = extern struct {
 	move: DrawFunPtr = null,
 };
 
-pub const FontStyleFlags = packed struct(u32) {
+pub const FontStyleFlags = packed struct(c_uint) {
 	font_style: u6,
 	rcv_able: bool,
 	snd_able: bool,
@@ -77,10 +77,12 @@ pub const FontStyleFlags = packed struct(u32) {
 	thick: bool,
 	lin0_log1: bool,
 	steady: bool,
-	_padding: u1,
+	unused: @Type(.{ .int = .{
+		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 31,
+	}}),
 };
 
-pub const InitSymArgs = packed struct(u32) {
+pub const InitSymArgs = packed struct(c_uint) {
 	loadinit: bool,
 	rcv_arg_tail_len: u6,
 	snd_arg_tail_len: u6,
@@ -89,7 +91,9 @@ pub const InitSymArgs = packed struct(u32) {
 	scale: bool,
 	flashed: bool,
 	locked: bool,
-	_padding: u4,
+	unused: @Type(.{ .int = .{
+		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 28,
+	}}),
 };
 
 pub const Gui = extern struct {

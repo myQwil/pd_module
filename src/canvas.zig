@@ -49,10 +49,12 @@ const OutConnect = opaque {};
 
 pub const UpdateHeader = extern struct {
 	next: ?*UpdateHeader,
-	flags: packed struct(u32) {
+	flags: packed struct(c_uint) {
 		array: bool,       // true if array, false if glist
 		queued: bool,      // true if we're queued
-		_padding: u30,
+		unused: @Type(.{ .int = .{
+			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 2,
+		}}),
 	},
 };
 
@@ -81,12 +83,14 @@ pub const Editor = extern struct {
 	selectline_index2: c_int,
 	selectline_inno: c_int,
 	selectline_tag: *OutConnect,
-	flags: packed struct(u32) {
+	flags: packed struct(c_uint) {
 		onmotion: OnMotion, // action to take on motion
 		lastmoved: bool,    // true if mouse has moved since click
 		textdirty: bool,    // one if e_textedfor has changed
 		selectedline: bool, // one if a line is selected
-		_padding: u26,
+		unused: @Type(.{ .int = .{
+			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 6,
+		}}),
 	},
 	clock: *Clock,                   // clock to filter GUI move messages
 	xnew: c_int,                     // xpos for next move event
@@ -161,7 +165,7 @@ pub const GList = extern struct {
 	font: c_int,           // nominal font size in points, e.g., 10
 	next: ?*Self,          // link in list of toplevels
 	env: *CanvasEnvironment, // root canvases and abstractions only
-	flags: packed struct(u32) {
+	flags: packed struct(c_uint) {
 		havewindow: bool,   // true if we own a window
 		mapped: bool,       // true if, moreover, it's "mapped"
 		dirty: bool,        // (root canvas only:) patch has changed
@@ -174,7 +178,9 @@ pub const GList = extern struct {
 		hidetext: bool,     // hide object-name + args when doing graph on parent
 		private: bool,      // private flag used in x_scalar.c
 		isclone: bool,      // exists as part of a clone object
-		_padding: u20,
+		unused: @Type(.{ .int = .{
+			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 12,
+		}}),
 	},
 	zoom: c_uint,          // zoom factor (integer zoom-in only)
 	privatedata: *anyopaque, // private data
