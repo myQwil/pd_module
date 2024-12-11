@@ -239,7 +239,7 @@ pub const GList = extern struct {
 	pub const findGraph = glist_findgraph;
 	extern fn glist_findgraph(*Self) ?*Self;
 
-	pub fn font(self: *Self) u32 {
+	pub fn getFont(self: *Self) u32 {
 		return glist_getfont(self);
 	}
 	extern fn glist_getfont(*Self) c_uint;
@@ -254,7 +254,7 @@ pub const GList = extern struct {
 	}
 	extern fn glist_fontheight(*Self) c_uint;
 
-	pub fn zoom(self: *Self) u32 {
+	pub fn getZoom(self: *Self) u32 {
 		glist_getzoom(self);
 	}
 	extern fn glist_getzoom(*Self) c_uint;

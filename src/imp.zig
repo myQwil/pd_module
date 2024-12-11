@@ -141,7 +141,7 @@ pub const Class = extern struct {
 	pub const setParentWidget = class_setparentwidget;
 	extern fn class_setparentwidget(*Self, *const cnv.parent.WidgetBehavior) void;
 
-	pub fn name(self: *const Self) [:0]const u8 {
+	pub fn getName(self: *const Self) [:0]const u8 {
 		const str = class_getname(self);
 		return str[0..strlen(str) :0];
 	}
