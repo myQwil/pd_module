@@ -202,7 +202,7 @@ pub const GList = extern struct {
 	/// ticks marking X values
 	xtick: Tick,
 	/// number of X coordinate labels
-	nxlabels: c_int,
+	nxlabels: c_uint,
 	/// array to hold X coordinate labels
 	xlabel: **Symbol,
 	/// Y coordinate for X coordinate labels
@@ -210,7 +210,7 @@ pub const GList = extern struct {
 	/// ticks marking Y values
 	ytick: Tick,
 	/// number of Y coordinate labels
-	nylabels: c_int,
+	nylabels: c_uint,
 	/// array to hold Y coordinate labels
 	ylabel: **Symbol,
 	/// X coordinate for Y coordinate labels
@@ -220,7 +220,7 @@ pub const GList = extern struct {
 	/// symbol bound here
 	name: *Symbol,
 	/// nominal font size in points, e.g., 10
-	font: c_int,
+	font: c_uint,
 	/// link in list of toplevels
 	next: ?*Self,
 	/// root canvases and abstractions only
