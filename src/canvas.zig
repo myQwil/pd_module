@@ -50,8 +50,10 @@ const OutConnect = opaque {};
 pub const UpdateHeader = extern struct {
 	next: ?*UpdateHeader,
 	flags: packed struct(c_uint) {
-		array: bool,       // true if array, false if glist
-		queued: bool,      // true if we're queued
+		/// true if array, false if glist
+		array: bool,
+		/// true if we're queued
+		queued: bool,
 		unused: @Type(.{ .int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 2,
 		}}),
@@ -64,46 +66,76 @@ const Selection = extern struct {
 };
 
 pub const Editor = extern struct {
-	upd: UpdateHeader,           // update header structure
-	updlist: *Selection,         // list of objects to update
-	rtext: *RText,               // text responder linked list
-	selection: *Selection,       // head of the selection list
-	textedfor: *RText,           // the rtext if any that we are editing
-	grab: *GObj,                 // object being "dragged"
-	motionfn: GList.MotionFn,    // ... motion callback
-	keyfn: GList.KeyFn,          // ... keypress callback
-	connectbuf: *BinBuf,         // connections to deleted objects
-	deleted: *BinBuf,            // last stuff we deleted
-	guiconnect: *GuiConnect,     // GUI connection for filtering messages
-	glist: *GList,               // glist which owns this
-	xwas: c_int,                 // xpos on last mousedown or motion event
-	ywas: c_int,                 // ypos, similarly
-	selectline_index1: c_int,    // indices for the selected line if any
-	selectline_outno: c_int,     // (only valid if e_selectedline is set)
+	/// update header structure
+	upd: UpdateHeader,
+	/// list of objects to update
+	updlist: *Selection,
+	/// text responder linked list
+	rtext: *RText,
+	/// head of the selection list
+	selection: *Selection,
+	/// the rtext if any that we are editing
+	textedfor: *RText,
+	/// object being "dragged"
+	grab: *GObj,
+	/// motion callback
+	motionfn: GList.MotionFn,
+	/// keypress callback
+	keyfn: GList.KeyFn,
+	/// connections to deleted objects
+	connectbuf: *BinBuf,
+	/// last stuff we deleted
+	deleted: *BinBuf,
+	/// GUI connection for filtering messages
+	guiconnect: *GuiConnect,
+	/// glist which owns this
+	glist: *GList,
+	/// xpos on last mousedown or motion event
+	xwas: c_int,
+	/// ypos on last mousedown or motion event
+	ywas: c_int,
+	/// indices for the selected line if any
+	selectline_index1: c_int,
+	/// (only valid if e_selectedline is set)
+	selectline_outno: c_int,
 	selectline_index2: c_int,
 	selectline_inno: c_int,
 	selectline_tag: *OutConnect,
 	flags: packed struct(c_uint) {
-		onmotion: OnMotion, // action to take on motion
-		lastmoved: bool,    // true if mouse has moved since click
-		textdirty: bool,    // one if e_textedfor has changed
-		selectedline: bool, // one if a line is selected
+		/// action to take on motion
+		onmotion: OnMotion,
+		/// true if mouse has moved since click
+		lastmoved: bool,
+		/// one if e_textedfor has changed
+		textdirty: bool,
+		/// one if a line is selected
+		selectedline: bool,
 		unused: @Type(.{ .int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 6,
 		}}),
 	},
-	clock: *Clock,                   // clock to filter GUI move messages
-	xnew: c_int,                     // xpos for next move event
-	ynew: c_int,                     // ypos, similarly
+	/// clock to filter GUI move messages
+	clock: *Clock,
+	/// xpos for next move event
+	xnew: c_int,
+	/// ypos for next move event
+	ynew: c_int,
 
 	const OnMotion = enum(u3) {
-		none,     // do nothing
-		move,     // drag the selection around
-		connect,  // make a connection
-		region,   // selection region
-		passout,  // send on to e_grab
-		dragtext, // drag in text editor to alter selection
-		resize,   // drag to resize
+		/// do nothing
+		none,
+		/// drag the selection around
+		move,
+		/// make a connection
+		connect,
+		/// selection region
+		region,
+		/// send on to e_grab
+		passout,
+		/// drag in text editor to alter selection
+		dragtext,
+		/// drag to resize
+		resize,
 	};
 };
 
@@ -111,10 +143,15 @@ pub const Editor = extern struct {
 // ----------------------------------- GList -----------------------------------
 // -----------------------------------------------------------------------------
 pub const CanvasEnvironment = opaque {};
-const Tick = extern struct {    // where to put ticks on x or y axes
-	point: Float,    // one point to draw a big tick at
-	inc: Float,      // x or y increment per little tick
-	lperb: c_int,    // little ticks per big; 0 if no ticks to draw
+
+/// where to put ticks on x or y axes
+const Tick = extern struct {
+	/// one point to draw a big tick at
+	point: Float,
+	/// x or y increment per little tick
+	inc: Float,
+	/// little ticks per big; 0 if no ticks to draw
+	lperb: c_int,
 };
 
 pub const GList = extern struct {
@@ -142,48 +179,85 @@ pub const GList = extern struct {
 	pixwidth: c_uint,
 	/// height in pixels (on parent, if a graph)
 	pixheight: c_uint,
-	x1: Float,             // bounding rectangle in our own coordinates
+	/// bounding rectangle in our own coordinates (x1)
+	x1: Float,
+	/// bounding rectangle in our own coordinates (y1)
 	y1: Float,
+	/// bounding rectangle in our own coordinates (x2)
 	x2: Float,
+	/// bounding rectangle in our own coordinates (y2)
 	y2: Float,
-	screenx1: c_int,       // screen coordinates when toplevel
+	/// screen coordinates when toplevel (x1)
+	screenx1: c_int,
+	/// screen coordinates when toplevel (y1)
 	screeny1: c_int,
+	/// screen coordinates when toplevel (x2)
 	screenx2: c_int,
+	/// screen coordinates when toplevel (y2)
 	screeny2: c_int,
-	xmargin: c_int,        // origin for GOP rectangle
+	/// X origin for GOP rectangle
+	xmargin: c_int,
+	/// Y origin for GOP rectangle
 	ymargin: c_int,
-	xtick: Tick,           // ticks marking X values
-	nxlabels: c_int,       // number of X coordinate labels
-	xlabel: **Symbol,      // ... an array to hold them
-	xlabely: Float,        // ... and their Y coordinates
-	ytick: Tick,           // same as above for Y ticks and labels
+	/// ticks marking X values
+	xtick: Tick,
+	/// number of X coordinate labels
+	nxlabels: c_int,
+	/// array to hold X coordinate labels
+	xlabel: **Symbol,
+	/// Y coordinate for X coordinate labels
+	xlabely: Float,
+	/// ticks marking Y values
+	ytick: Tick,
+	/// number of Y coordinate labels
 	nylabels: c_int,
+	/// array to hold Y coordinate labels
 	ylabel: **Symbol,
+	/// X coordinate for Y coordinate labels
 	ylabelx: Float,
-	editor: *Editor,       // editor structure when visible
-	name: *Symbol,         // symbol bound here
-	font: c_int,           // nominal font size in points, e.g., 10
-	next: ?*Self,          // link in list of toplevels
-	env: *CanvasEnvironment, // root canvases and abstractions only
+	/// editor structure when visible
+	editor: *Editor,
+	/// symbol bound here
+	name: *Symbol,
+	/// nominal font size in points, e.g., 10
+	font: c_int,
+	/// link in list of toplevels
+	next: ?*Self,
+	/// root canvases and abstractions only
+	env: *CanvasEnvironment,
 	flags: packed struct(c_uint) {
-		havewindow: bool,   // true if we own a window
-		mapped: bool,       // true if, moreover, it's "mapped"
-		dirty: bool,        // (root canvas only:) patch has changed
-		loading: bool,      // am now loading from file
-		willvis: bool,      // make me visible after loading
-		edit: bool,         // edit mode
-		isdeleting: bool,   // we're inside glist_delete -- hack!
-		goprect: bool,      // draw rectangle for graph-on-parent
-		isgraph: bool,      // show as graph on parent
-		hidetext: bool,     // hide object-name + args when doing graph on parent
-		private: bool,      // private flag used in x_scalar.c
-		isclone: bool,      // exists as part of a clone object
+		/// true if we own a window
+		havewindow: bool,
+		/// true if, moreover, it's "mapped"
+		mapped: bool,
+		/// (root canvas only:) patch has changed
+		dirty: bool,
+		/// am now loading from file
+		loading: bool,
+		/// make me visible after loading
+		willvis: bool,
+		/// edit mode
+		edit: bool,
+		/// we're inside glist_delete -- hack!
+		isdeleting: bool,
+		/// draw rectangle for graph-on-parent
+		goprect: bool,
+		/// show as graph on parent
+		isgraph: bool,
+		/// hide object-name + args when doing graph on parent
+		hidetext: bool,
+		/// private flag used in x_scalar.c
+		private: bool,
+		/// exists as part of a clone object
+		isclone: bool,
 		unused: @Type(.{ .int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 12,
 		}}),
 	},
-	zoom: c_uint,          // zoom factor (integer zoom-in only)
-	privatedata: *anyopaque, // private data
+	/// zoom factor (integer zoom-in only)
+	zoom: c_uint,
+	/// private data
+	privatedata: *anyopaque,
 
 	pub const init = glist_init;
 	extern fn glist_init(*Self) void;
