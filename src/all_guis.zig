@@ -61,6 +61,8 @@ pub const DrawFunctions = extern struct {
 };
 
 pub const FontStyleFlags = packed struct(c_uint) {
+	const Self = @This();
+
 	font_style: u6,
 	rcv_able: bool,
 	snd_able: bool,
@@ -80,9 +82,16 @@ pub const FontStyleFlags = packed struct(c_uint) {
 	unused: @Type(.{ .int = .{
 		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 31,
 	}}),
+
+	pub fn init(self: *Self, n: u32) void {
+		iem_inttofstyle(self, @intCast(n));
+	}
+	extern fn iem_inttofstyle(self: *Self, n: c_int) void;
 };
 
 pub const InitSymArgs = packed struct(c_uint) {
+	const Self = @This();
+
 	loadinit: bool,
 	rcv_arg_tail_len: u6,
 	snd_arg_tail_len: u6,
@@ -94,6 +103,11 @@ pub const InitSymArgs = packed struct(c_uint) {
 	unused: @Type(.{ .int = .{
 		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 28,
 	}}),
+
+	pub fn init(self: *Self, n: u32) void {
+		iem_inttosymargs(self, @intCast(n));
+	}
+	extern fn iem_inttosymargs(self: *Self, n: c_int) void;
 };
 
 pub const Gui = extern struct {
@@ -103,6 +117,19 @@ pub const Gui = extern struct {
 		GuiNew,
 	};
 	const Err = Self.Error;
+
+	pub const Mode = enum(c_uint) {
+		linear = 0,
+		logarithmic = 1,
+	};
+
+	pub inline fn defaultSize() u32 {
+		return pd.zoomFontHeight(cnv.GList.current().font, 1, false) + 2 + 3;
+	}
+
+	pub inline fn defaultScale() Float {
+		return @as(Float, @floatFromInt(defaultSize())) / 15;
+	}
 
 	obj: pd.Object,
 	glist: *GList,
@@ -131,7 +158,7 @@ pub const Gui = extern struct {
 	pub const free = iemgui_free;
 	extern fn iemgui_free(*Self) void;
 
-	pub const verifySendNotReceive = iemgui_verify_snd_ne_rcv;
+	pub const verifySendNotEqReceive = iemgui_verify_snd_ne_rcv;
 	extern fn iemgui_verify_snd_ne_rcv(*Self) void;
 
 	/// Get the unexpanded versions of the symbols. Initialize them if necessary.
@@ -217,30 +244,44 @@ pub const Gui = extern struct {
 	}
 	extern fn iemgui_label_font(*anyopaque, *Self, *Symbol, c_uint, [*]Atom) void;
 
-	pub fn doLabel(self: *Self, x: *anyopaque, s: *Symbol, senditup: c_int) void {
-		iemgui_dolabel(x, self, s, senditup);
+	/// update the label (both internally and on the GUI)
+	pub fn doLabel(
+		self: *Self,
+		x: *anyopaque,
+		s: *Symbol,
+		send_to_gui: enum(c_int) {
+			auto = -1,
+			never = 0,
+			always = 1,
+		},
+	) void {
+		iemgui_dolabel(x, self, s, @intFromEnum(send_to_gui));
 	}
-	extern fn iemgui_dolabel(*anyopaque, *Self, *Symbol, c_uint) void;
+	extern fn iemgui_dolabel(*anyopaque, *Self, *Symbol, c_int) void;
 
 	pub fn newDialog(
 		self: *Self, x: *anyopaque,
 		objname: [*:0]const u8,
 		width: Float, width_min: Float,
 		height: Float, height_min: Float,
-		range_min: Float, range_max: Float, range_checkmode: c_int,
-		mode: bool,
+		range_min: Float, range_max: Float,
+		range_checkmode: enum(c_uint) {
+			none = 0,
+			toggle = 1,
+			flash = 2,
+		},
+		mode: Mode,
 		mode_label0: [*:0]const u8, mode_label1: [*:0]const u8,
 		canloadbang: bool, steady: c_int, number: c_int
 	) void {
 		iemgui_new_dialog(x, self, objname, width, width_min, height, height_min,
-			range_min, range_max, range_checkmode, @intFromBool(mode),
+			range_min, range_max, @intFromEnum(range_checkmode), @intFromEnum(mode),
 			mode_label0, mode_label1, @intFromBool(canloadbang), steady, number);
 	}
 	extern fn iemgui_new_dialog(
 		*anyopaque, *Self, [*:0]const u8,
-		Float, Float, Float, Float, Float, Float, c_int, c_uint,
-		[*:0]const u8, [*:0]const u8, canloadbang: c_uint,
-		steady: c_int, number: c_int
+		Float, Float, Float, Float, Float, Float, c_uint, c_uint,
+		[*:0]const u8, [*:0]const u8, c_uint, c_int, c_int
 	) void;
 
 	pub fn setDialogAtoms(self: *Self, argv: []Atom) void {
@@ -266,12 +307,16 @@ extern fn iemgui_displace(*GObj, *GList, dx: c_int, dy: c_int) void;
 pub fn setSelected(obj: *GObj, list: *GList, selected: bool) void {
 	iemgui_select(obj, list, @intFromBool(selected));
 }
+/// use `setSelected` when directly calling within zig
+pub const select = iemgui_select;
 extern fn iemgui_select(*GObj, *GList, c_uint) void;
 
 pub const delete = iemgui_delete;
 extern fn iemgui_delete(*GObj, *GList) void;
 
-pub fn setVisible(obj: *GObj, list: *GList, vis: bool) void {
-	iemgui_vis(obj, list, @intFromBool(vis));
+pub fn setVisible(obj: *GObj, list: *GList, visible: bool) void {
+	iemgui_vis(obj, list, @intFromBool(visible));
 }
+/// use `setVisible` when directly calling within zig
+pub const vis = iemgui_vis;
 extern fn iemgui_vis(*GObj, *GList, c_uint) void;

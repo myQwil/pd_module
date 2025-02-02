@@ -1,6 +1,6 @@
 .{
     .name = "pd_module",
-    .version = "0.1.3",
+    .version = "0.1.4",
     .paths = .{
         "src",
         "LICENSE",

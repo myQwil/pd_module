@@ -495,10 +495,11 @@ pub const GList = extern struct {
 	}
 	extern fn pd_undo_set_objectstate(
 		*Self, *Pd, *Symbol, c_uint, [*]Atom, c_uint, [*]Atom) void;
+
+	pub const current = canvas_getcurrent;
+	extern fn canvas_getcurrent() *Self;
 };
 
-pub const currentCanvas = canvas_getcurrent;
-extern fn canvas_getcurrent() ?*GList;
 
 // --------------------------------- LoadBang ----------------------------------
 // -----------------------------------------------------------------------------

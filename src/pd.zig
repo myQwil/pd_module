@@ -181,6 +181,11 @@ pub const BinBuf = opaque {
 	}
 	extern fn binbuf_add(*Self, c_uint, [*]const Atom) void;
 
+	pub fn addV(self: *Self, fmt: [*:0]const u8, args: anytype) void {
+		@call(.auto, binbuf_addv, .{ self, fmt } ++ args);
+	}
+	extern fn binbuf_addv(*Self, fmt: [*:0]const u8, ...) void;
+
 	/// add a binbuf to another one for saving.  Semicolons and commas go to
 	/// symbols ";", "'",; and inside symbols, characters ';', ',' and '$' get
 	/// escaped.  LATER also figure out about escaping white space
@@ -955,13 +960,13 @@ pub fn hostFontSize(fontsize: u32, zoom: u32) u32 {
 }
 extern fn sys_hostfontsize(c_uint, c_uint) c_uint;
 
-pub fn zoomFontWidth(fontsize: u32, zoom: u32, worstcase: u32) u32 {
-	return sys_zoomfontwidth(fontsize, zoom, worstcase);
+pub fn zoomFontWidth(fontsize: u32, zoom: u32, worst_case: bool) u32 {
+	return sys_zoomfontwidth(fontsize, zoom, @intFromBool(worst_case));
 }
 extern fn sys_zoomfontwidth(c_uint, c_uint, c_uint) c_uint;
 
-pub fn zoomFontHeight(fontsize: u32, zoom: u32, worstcase: u32) u32 {
-	return sys_zoomfontheight(fontsize, zoom, worstcase);
+pub fn zoomFontHeight(fontsize: u32, zoom: u32, worst_case: bool) u32 {
+	return sys_zoomfontheight(fontsize, zoom, @intFromBool(worst_case));
 }
 extern fn sys_zoomfontheight(c_uint, c_uint, c_uint) c_uint;
 
@@ -1229,26 +1234,13 @@ extern fn qsqrt(Float) Float;
 pub const qRsqrt = qrsqrt;
 extern fn qrsqrt(Float) Float;
 
-pub const vMess = pdgui_vmess;
-extern fn pdgui_vmess(destination: ?[*:0]const u8, fmt: [*:0]const u8, ...) void;
+pub fn vMess(destination: ?[*:0]const u8, fmt: [*:0]const u8, args: anytype) void {
+	@call(.auto, pdgui_vmess, .{ destination, fmt } ++ args);
+}
+extern fn pdgui_vmess(?[*:0]const u8, [*:0]const u8, ...) void;
 
 pub const deleteStubForKey = pdgui_stub_deleteforkey;
 extern fn pdgui_stub_deleteforkey(key: *anyopaque) void;
-
-pub const cExtern = c_extern;
-extern fn c_extern(
-	cls: *imp.Class,
-	newroutine: NewMethod,
-	freeroutine: Method,
-	name: *Symbol,
-	size: usize,
-	tiny: c_int,
-	arg1: Atom.Type,
-	...
-) void;
-
-pub const cAddMess = c_addmess;
-extern fn c_addmess(func: Method, sel: *Symbol, arg1: Atom.Type, ...) void;
 
 const flt_bits = @bitSizeOf(Float);
 const exp_bits = std.math.floatExponentBits(Float);
