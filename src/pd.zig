@@ -9,8 +9,8 @@ const Bool = c_uint;
 /// zero on success, otherwise represents an error
 const Result = c_int;
 
-pub const Error = BinBuf.Error || Clock.Error || GArray.Error || Object.Error
-	|| Signal.Error || value.Error || error.RealizeDollSym;
+pub const Error = BinBuf.Error || Clock.Error || GArray.Error || Inlet.Error
+	|| Outlet.Error || Signal.Error || value.Error || error.RealizeDollSym;
 
 pub extern const pd_compatibilitylevel: c_int;
 
@@ -297,6 +297,9 @@ pub const Clock = opaque {
 	};
 	const Err = Self.Error;
 
+	pub const free = clock_free;
+	extern fn clock_free(*Self) void;
+
 	pub const set = clock_set;
 	extern fn clock_set(*Self, systime: f64) void;
 
@@ -305,9 +308,6 @@ pub const Clock = opaque {
 
 	pub const unset = clock_unset;
 	extern fn clock_unset(*Self) void;
-
-	pub const free = clock_free;
-	extern fn clock_free(*Self) void;
 
 	pub fn setUnit(self: *Self, timeunit: f64, in_samples: bool) void {
 		clock_setunit(self, timeunit, @intFromBool(in_samples));
@@ -483,6 +483,50 @@ pub const GPointer = extern struct {
 };
 
 
+// ----------------------------------- Inlet -----------------------------------
+// -----------------------------------------------------------------------------
+pub const Inlet = opaque {
+	const Self = @This();
+
+	pub const Error = error {
+		InletNew,
+		InletNewFloat,
+		InletNewSymbol,
+		InletNewSignal,
+		InletNewPointer,
+	};
+	const Err = Self.Error;
+
+	pub const free = inlet_free;
+	extern fn inlet_free(*Self) void;
+
+	pub fn new(obj: *Object, dest: *Pd, from: ?*Symbol, to: ?*Symbol) Err!*Self {
+		return inlet_new(obj, dest, from, to) orelse Err.InletNew;
+	}
+	extern fn inlet_new(*Object, *Pd, ?*Symbol, ?*Symbol) ?*Self;
+
+	pub fn float(obj: *Object, fp: *Float) Err!*Self {
+		return floatinlet_new(obj, fp) orelse Err.InletNewFloat;
+	}
+	extern fn floatinlet_new(*Object, *Float) ?*Self;
+
+	pub fn symbol(obj: *Object, sym: **Symbol) Err!*Self {
+		return symbolinlet_new(obj, sym) orelse Err.InletNewSymbol;
+	}
+	extern fn symbolinlet_new(*Object, **Symbol) ?*Self;
+
+	pub fn signal(obj: *Object, f: Float) Err!*Self {
+		return signalinlet_new(obj, f) orelse Err.InletNewSignal;
+	}
+	extern fn signalinlet_new(*Object, Float) ?*Self;
+
+	pub fn pointer(obj: *Object, gp: *GPointer) Err!*Self {
+		return pointerinlet_new(obj, gp) orelse Err.InletNewPointer;
+	}
+	extern fn pointerinlet_new(*Object, *GPointer) ?*Self;
+};
+
+
 // ---------------------------------- Memory -----------------------------------
 // -----------------------------------------------------------------------------
 const Allocator = std.mem.Allocator;
@@ -521,23 +565,8 @@ pub const GObj = extern struct {
 	next: ?*GObj,
 };
 
-pub const Inlet = opaque {
-	pub const free = inlet_free;
-	extern fn inlet_free(*Inlet) void;
-};
-
 pub const Object = extern struct {
 	const Self = @This();
-
-	pub const Error = error {
-		ObjectNewOutlet,
-		ObjectNewInlet,
-		ObjectNewInletPointer,
-		ObjectNewInletFloat,
-		ObjectNewInletSymbol,
-		ObjectNewInletSignal,
-	};
-	const Err = Self.Error;
 
 	/// header for graphical object
 	g: GObj,
@@ -574,36 +603,6 @@ pub const Object = extern struct {
 	pub const saveFormat = obj_saveformat;
 	extern fn obj_saveformat(*const Self, *BinBuf) void;
 
-	pub fn outlet(self: *Self, atype: ?*Symbol) Err!*Outlet {
-		return outlet_new(self, atype) orelse Err.ObjectNewOutlet;
-	}
-	extern fn outlet_new(*Self, ?*Symbol) ?*Outlet;
-
-	pub fn inlet(self: *Self, dest: *Pd, from: ?*Symbol, to: ?*Symbol) Err!*Inlet {
-		return inlet_new(self, dest, from, to) orelse Err.ObjectNewInlet;
-	}
-	extern fn inlet_new(*Self, *Pd, ?*Symbol, ?*Symbol) ?*Inlet;
-
-	pub fn inletPointer(self: *Self, gp: *GPointer) Err!*Inlet {
-		return pointerinlet_new(self, gp) orelse Err.ObjectNewInletPointer;
-	}
-	extern fn pointerinlet_new(*Self, *GPointer) ?*Inlet;
-
-	pub fn inletFloat(self: *Self, fp: *Float) Err!*Inlet {
-		return floatinlet_new(self, fp) orelse Err.ObjectNewInletFloat;
-	}
-	extern fn floatinlet_new(*Self, *Float) ?*Inlet;
-
-	pub fn inletSymbol(self: *Self, sym: **Symbol) Err!*Inlet {
-		return symbolinlet_new(self, sym) orelse Err.ObjectNewInletSymbol;
-	}
-	extern fn symbolinlet_new(*Self, **Symbol) ?*Inlet;
-
-	pub fn inletSignal(self: *Self, f: Float) Err!*Inlet {
-		return signalinlet_new(self, f) orelse Err.ObjectNewInletSignal;
-	}
-	extern fn signalinlet_new(*Self, Float) ?*Inlet;
-
 	pub fn xPix(self: *Self, glist: *cnv.GList) i32 {
 		return text_xpix(self, glist);
 	}
@@ -614,12 +613,19 @@ pub const Object = extern struct {
 	}
 	extern fn text_ypix(*Self, *cnv.GList) c_int;
 
+	pub const outlet = Outlet.new;
+	pub const inlet = Inlet.new;
+	pub const inletFloat = Inlet.float;
+	pub const inletSymbol = Inlet.symbol;
+	pub const inletSignal = Inlet.signal;
+	pub const inletPointer = Inlet.pointer;
+
 	pub fn inletFloatArg(
 		self: *Self,
 		fp: *Float,
 		av: []const Atom,
 		which: usize
-	) Err!*Inlet {
+	) Inlet.Error!*Inlet {
 		fp.* = floatArg(av, which);
 		return self.inletFloat(fp);
 	}
@@ -629,7 +635,7 @@ pub const Object = extern struct {
 		sp: **Symbol,
 		av: []const Atom,
 		which: usize
-	) Err!*Inlet {
+	) Inlet.Error!*Inlet {
 		sp.* = symbolArg(av, which);
 		return self.inletSymbol(sp);
 	}
@@ -640,6 +646,14 @@ pub const Object = extern struct {
 // -----------------------------------------------------------------------------
 pub const Outlet = opaque {
 	const Self = @This();
+
+	pub const Error = error {
+		OutletNew,
+	};
+	const Err = Self.Error;
+
+	pub const free = outlet_free;
+	extern fn outlet_free(*Self) void;
 
 	pub const bang = outlet_bang;
 	extern fn outlet_bang(*Self) void;
@@ -667,8 +681,10 @@ pub const Outlet = opaque {
 	pub const getSymbol = outlet_getsymbol;
 	extern fn outlet_getsymbol(*Self) *Symbol;
 
-	pub const free = outlet_free;
-	extern fn outlet_free(*Self) void;
+	pub fn new(obj: *Object, atype: ?*Symbol) Err!*Self {
+		return outlet_new(obj, atype) orelse Err.OutletNew;
+	}
+	extern fn outlet_new(*Object, ?*Symbol) ?*Self;
 };
 
 
@@ -791,11 +807,11 @@ pub const Resample = extern struct {
 	buffer: [*]Sample,
 	buf_size: c_uint,
 
-	pub const init = resample_init;
-	extern fn resample_init(*Self) void;
-
 	pub const free = resample_free;
 	extern fn resample_free(*Self) void;
+
+	pub const init = resample_init;
+	extern fn resample_init(*Self) void;
 
 	pub fn dsp(self: *Self, in: []Sample, out: []Sample, conv: Converter) void {
 		resample_dsp(self, in.ptr, @intCast(in.len), out.ptr, @intCast(out.len), conv);
