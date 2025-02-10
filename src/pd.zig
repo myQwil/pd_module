@@ -538,8 +538,20 @@ fn alloc(_: *anyopaque, len: usize, _: u8, _: usize) ?[*]u8 {
 }
 extern fn getbytes(usize) ?*anyopaque;
 
+extern "c" fn _msize(memblock: ?*anyopaque) usize;
+extern "c" fn malloc_size(?*const anyopaque) usize;
+extern "c" fn malloc_usable_size(?*const anyopaque) usize;
+
+const alloc_size = switch (@import("builtin").os.tag) {
+	.windows => _msize,
+	.macos, .ios, .tvos, .watchos, .visionos => malloc_size,
+	.freebsd, .linux => malloc_usable_size,
+	else => {},
+};
+
 fn resize(_: *anyopaque, buf: []u8, _: u8, new_len: usize, _: usize) bool {
-	return (new_len <= buf.len);
+	return (new_len <= buf.len
+		or (@TypeOf(alloc_size) != void and new_len <= alloc_size(buf.ptr)));
 }
 
 fn free(_: *anyopaque, buf: []u8, _: u8, _: usize) void {
