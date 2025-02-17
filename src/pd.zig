@@ -538,7 +538,7 @@ fn alloc(_: *anyopaque, len: usize, _: u8, _: usize) ?[*]u8 {
 }
 extern fn getbytes(usize) ?*anyopaque;
 
-extern "c" fn _msize(memblock: ?*anyopaque) usize;
+extern "c" fn _msize(?*anyopaque) usize;
 extern "c" fn malloc_size(?*const anyopaque) usize;
 extern "c" fn malloc_usable_size(?*const anyopaque) usize;
 

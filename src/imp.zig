@@ -27,7 +27,7 @@ pub const MethodEntry = extern struct {
 };
 
 pub const Class = extern struct {
-   const Self = @This();
+	const Self = @This();
 
 	pub const Error = error {
 		ClassPd,
@@ -65,19 +65,19 @@ pub const Class = extern struct {
 	next: ?*Class,
 	float_signal_in: c_uint,
 	flags: packed struct(u8) {
-      /// true if is a gobj
+		/// true if is a gobj
 		gobj: bool,
-      /// true if we have a t_object header
+		/// true if we have a t_object header
 		patchable: bool,
-      /// if so, true if drawing first inlet
+		/// if so, true if drawing first inlet
 		first_in: bool,
-      /// drawing command for a template
+		/// drawing command for a template
 		draw_command: bool,
-      /// can deal with multichannel sigs
+		/// can deal with multichannel sigs
 		multichannel: bool,
-      /// don't promote scalars to signals
+		/// don't promote scalars to signals
 		no_promote_sig: bool,
-      /// don't promote the main (left) inlet to signals
+		/// don't promote the main (left) inlet to signals
 		no_promote_left: bool,
 		unused: u1,
 	},
