@@ -1,6 +1,7 @@
 const pd = @import("pd.zig");
 const cnv = @import("canvas.zig");
-const strlen = @cImport({ @cInclude("string.h"); }).strlen;
+
+const strlen = @import("std").mem.len;
 
 pub const Error = Class.Error;
 

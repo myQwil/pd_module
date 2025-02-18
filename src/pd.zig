@@ -2,7 +2,8 @@ const std = @import("std");
 pub const imp = @import("imp.zig");
 pub const cnv = @import("canvas.zig");
 pub const iem = @import("all_guis.zig");
-const strlen = @cImport({ @cInclude("string.h"); }).strlen;
+
+const strlen = std.mem.len;
 
 /// non-zero on success/true
 const Bool = c_uint;
