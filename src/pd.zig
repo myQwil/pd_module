@@ -1288,19 +1288,19 @@ pub fn badFloat(f: Float) bool {
 	return (f != 0 and (pun.ui == 0 or pun.ui == exp_mask));
 }
 
-pub fn bigOrSmall(f: Float) bool {
-	const pun = BigOrSmall{ .f = f };
-	return ((pun.ui & bos_mask) == ((pun.ui >> 1) & bos_mask));
-}
-
-test "bad float" {
+test badFloat {
 	try std.testing.expect(badFloat((BigOrSmall{ .ui = exp_mask }).f)); // infinity
 	try std.testing.expect(badFloat((BigOrSmall{ .ui = exp_mask + 1 }).f)); // NaN
 	try std.testing.expect(badFloat((BigOrSmall{ .ui = 1 }).f)); // denormal
 	try std.testing.expect(!badFloat(123.45)); // good float
 }
 
-test "big or small" {
+pub fn bigOrSmall(f: Float) bool {
+	const pun = BigOrSmall{ .f = f };
+	return ((pun.ui & bos_mask) == ((pun.ui >> 1) & bos_mask));
+}
+
+test bigOrSmall {
 	const big = if (float_bits == 64) 0x1p513 else 0x1p65;
 	const small = if (float_bits == 64) 0x1p-512 else 0x1p-64;
 	const almost_big = if (float_bits == 64) 0x1p512 else 0x1p64;
