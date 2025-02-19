@@ -54,7 +54,7 @@ pub const UpdateHeader = extern struct {
 		array: bool,
 		/// true if we're queued
 		queued: bool,
-		unused: @Type(.{ .int = .{
+		_unused: @Type(.{.int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 2,
 		}}),
 	},
@@ -110,7 +110,7 @@ pub const Editor = extern struct {
 		textdirty: bool,
 		/// one if a line is selected
 		selectedline: bool,
-		unused: @Type(.{ .int = .{
+		_unused: @Type(.{.int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 6,
 		}}),
 	},
@@ -250,7 +250,7 @@ pub const GList = extern struct {
 		private: bool,
 		/// exists as part of a clone object
 		isclone: bool,
-		unused: @Type(.{ .int = .{
+		_unused: @Type(.{.int = .{
 			.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 12,
 		}}),
 	},

@@ -79,7 +79,7 @@ pub const FontStyleFlags = packed struct(c_uint) {
 	thick: bool,
 	lin0_log1: bool,
 	steady: bool,
-	unused: @Type(.{ .int = .{
+	_unused: @Type(.{.int = .{
 		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 31,
 	}}),
 
@@ -100,7 +100,7 @@ pub const InitSymArgs = packed struct(c_uint) {
 	scale: bool,
 	flashed: bool,
 	locked: bool,
-	unused: @Type(.{ .int = .{
+	_unused: @Type(.{.int = .{
 		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 28,
 	}}),
 
