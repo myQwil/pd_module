@@ -1271,15 +1271,15 @@ extern fn pdgui_vmess(?[*:0]const u8, [*:0]const u8, ...) void;
 pub const deleteStubForKey = pdgui_stub_deleteforkey;
 extern fn pdgui_stub_deleteforkey(key: *anyopaque) void;
 
-const flt_bits = @bitSizeOf(Float);
-const exp_bits = std.math.floatExponentBits(Float);
-const sign_bit = 1;
-const exp_mask = ((1 << exp_bits) - 1) << (flt_bits - exp_bits - sign_bit);
-const bos_mask = 1 << (flt_bits - 3);
+pub const float_bits = @bitSizeOf(Float);
+pub const mantissa_bits = std.math.floatMantissaBits(Float);
+pub const exponent_bits = std.math.floatExponentBits(Float);
+const exp_mask = ((1 << exponent_bits) - 1) << mantissa_bits;
+const bos_mask = 1 << (float_bits - 3);
 
 pub const BigOrSmall = extern union {
 	f: Float,
-	ui: std.meta.Int(.unsigned, flt_bits),
+	ui: std.meta.Int(.unsigned, float_bits),
 };
 
 pub fn badFloat(f: Float) bool {
@@ -1301,11 +1301,14 @@ test "bad float" {
 }
 
 test "big or small" {
-	const big = if (@bitSizeOf(Float) == 64) 0x1p513 else 0x1p65;
-	const small = if (@bitSizeOf(Float) == 64) 0x1p-512 else 0x1p-64;
+	const big = if (float_bits == 64) 0x1p513 else 0x1p65;
+	const small = if (float_bits == 64) 0x1p-512 else 0x1p-64;
+	const almost_big = if (float_bits == 64) 0x1p512 else 0x1p64;
+	const almost_small = if (float_bits == 64) 0x1p-511 else 0x1p-63;
 	try std.testing.expect(bigOrSmall(big));
 	try std.testing.expect(bigOrSmall(small));
-	try std.testing.expect(!bigOrSmall(123.45));
+	try std.testing.expect(!bigOrSmall(almost_big));
+	try std.testing.expect(!bigOrSmall(almost_small));
 }
 
 pub const Template = opaque {};
