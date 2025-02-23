@@ -10,9 +10,6 @@ const Bool = c_uint;
 /// zero on success, otherwise represents an error
 const Result = c_int;
 
-pub const Error = BinBuf.Error || Clock.Error || GArray.Error || Inlet.Error
-	|| Outlet.Error || Signal.Error || value.Error || error.RealizeDollSym;
-
 pub extern const pd_compatibilitylevel: c_int;
 
 pub const Float = std.meta.Float(@import("options").float_size);
@@ -41,8 +38,6 @@ pub const Word = extern union {
 // ----------------------------------- Atom ------------------------------------
 // -----------------------------------------------------------------------------
 pub const Atom = extern struct {
-	const Self = @This();
-
 	type: Type,
 	w: Word,
 
@@ -73,21 +68,21 @@ pub const Atom = extern struct {
 	};
 
 	pub const int = atom_getint;
-	extern fn atom_getint(*const Self) isize;
+	extern fn atom_getint(*const Atom) isize;
 
 	pub const float = atom_getfloat;
-	extern fn atom_getfloat(*const Self) Float;
+	extern fn atom_getfloat(*const Atom) Float;
 
 	pub const symbol = atom_getsymbol;
-	extern fn atom_getsymbol(*const Self) *Symbol;
+	extern fn atom_getsymbol(*const Atom) *Symbol;
 
 	pub const toSymbol = atom_gensym;
-	extern fn atom_gensym(*const Self) *Symbol;
+	extern fn atom_gensym(*const Atom) *Symbol;
 
-	pub fn bufPrint(self: *const Self, buf: []u8) void {
+	pub fn bufPrint(self: *const Atom, buf: []u8) void {
 		atom_string(self, buf.ptr, @intCast(buf.len));
 	}
-	extern fn atom_string(*const Self, [*]u8, c_uint) void;
+	extern fn atom_string(*const Atom, [*]u8, c_uint) void;
 };
 
 pub fn addCreator(
@@ -118,8 +113,6 @@ extern fn atom_getsymbolarg(c_uint, c_uint, [*]const Atom) *Symbol;
 // ---------------------------------- BinBuf -----------------------------------
 // -----------------------------------------------------------------------------
 pub const BinBuf = opaque {
-	const Self = @This();
-
 	pub const Error = error {
 		BinBufDuplicate,
 		BinBufFromText,
@@ -134,146 +127,144 @@ pub const BinBuf = opaque {
 		BinBufNew,
 		BinBufFromName,
 	};
-	const Err = Self.Error;
 
 	pub const free = binbuf_free;
-	extern fn binbuf_free(*Self) void;
+	extern fn binbuf_free(*BinBuf) void;
 
-	pub fn duplicate(self: *const Self) Err!*Self {
-		return binbuf_duplicate(self) orelse Err.BinBufDuplicate;
+	pub fn duplicate(self: *const BinBuf) Error!*BinBuf {
+		return binbuf_duplicate(self) orelse Error.BinBufDuplicate;
 	}
-	extern fn binbuf_duplicate(*const Self) ?*Self;
+	extern fn binbuf_duplicate(*const BinBuf) ?*BinBuf;
 
-	pub fn len(self: *const Self) u32 {
+	pub fn len(self: *const BinBuf) u32 {
 		return binbuf_getnatom(self);
 	}
-	extern fn binbuf_getnatom(*const Self) c_uint;
+	extern fn binbuf_getnatom(*const BinBuf) c_uint;
 
-	pub fn vec(self: *Self) []Atom {
+	pub fn vec(self: *BinBuf) []Atom {
 		return binbuf_getvec(self)[0..binbuf_getnatom(self)];
 	}
-	extern fn binbuf_getvec(*const Self) [*]Atom;
+	extern fn binbuf_getvec(*const BinBuf) [*]Atom;
 
-	pub fn fromText(txt: [:0]const u8) Err!*Self {
-		const self = try Self.new();
-		errdefer self.free();
+	pub fn fromText(self: *BinBuf, txt: [:0]const u8) Error!*void {
 		binbuf_text(self, txt.ptr, txt.len);
-		return if (binbuf_getnatom(self) == 0) Err.BinBufFromText else self;
+		if (binbuf_getnatom(self) == 0)
+			return Error.BinBufFromText;
 	}
-	extern fn binbuf_text(*Self, [*:0]const u8, usize) void;
+	extern fn binbuf_text(*BinBuf, [*:0]const u8, usize) void;
 
 	/// Convert a binbuf to text. No null termination.
-	pub fn text(self: *const Self) []u8 {
+	pub fn text(self: *const BinBuf) []u8 {
 		var ptr: [*]u8 = undefined;
 		var n: c_uint = undefined;
 		binbuf_gettext(self, &ptr, &n);
 		return ptr[0..n];
 	}
-	extern fn binbuf_gettext(*const Self, *[*]u8, *c_uint) void;
+	extern fn binbuf_gettext(*const BinBuf, *[*]u8, *c_uint) void;
 
 	pub const clear = binbuf_clear;
-	extern fn binbuf_clear(*Self) void;
+	extern fn binbuf_clear(*BinBuf) void;
 
-	pub fn add(self: *Self, av: []const Atom) Err!void {
+	pub fn add(self: *BinBuf, av: []const Atom) Error!void {
 		const newsize = binbuf_getnatom(self) + av.len;
 		binbuf_add(self, @intCast(av.len), av.ptr);
 		if (binbuf_getnatom(self) != newsize)
-			return Err.BinBufAdd;
+			return Error.BinBufAdd;
 	}
-	extern fn binbuf_add(*Self, c_uint, [*]const Atom) void;
+	extern fn binbuf_add(*BinBuf, c_uint, [*]const Atom) void;
 
-	pub fn addV(self: *Self, fmt: [*:0]const u8, args: anytype) void {
+	pub fn addV(self: *BinBuf, fmt: [*:0]const u8, args: anytype) void {
 		@call(.auto, binbuf_addv, .{ self, fmt } ++ args);
 	}
-	extern fn binbuf_addv(*Self, fmt: [*:0]const u8, ...) void;
+	extern fn binbuf_addv(*BinBuf, fmt: [*:0]const u8, ...) void;
 
 	/// add a binbuf to another one for saving.  Semicolons and commas go to
 	/// symbols ";", "'",; and inside symbols, characters ';', ',' and '$' get
 	/// escaped.  LATER also figure out about escaping white space
-	pub fn join(self: *Self, other: *const Self) Err!void {
+	pub fn join(self: *BinBuf, other: *const BinBuf) Error!void {
 		const newsize = binbuf_getnatom(self) + binbuf_getnatom(other);
 		binbuf_addbinbuf(self, other);
 		if (binbuf_getnatom(self) != newsize)
-			return Err.BinBufJoin;
+			return Error.BinBufJoin;
 	}
-	extern fn binbuf_addbinbuf(*Self, *const Self) void;
+	extern fn binbuf_addbinbuf(*BinBuf, *const BinBuf) void;
 
-	pub fn addSemi(self: *Self) Err!void {
+	pub fn addSemi(self: *BinBuf) Error!void {
 		const newsize = binbuf_getnatom(self) + 1;
 		binbuf_addsemi(self);
 		if (binbuf_getnatom(self) != newsize)
-			return Err.BinBufAddSemi;
+			return Error.BinBufAddSemi;
 	}
-	extern fn binbuf_addsemi(*Self) void;
+	extern fn binbuf_addsemi(*BinBuf) void;
 
 	/// Supply atoms to a binbuf from a message, making the opposite changes
 	/// from `join`.  The symbol ";" goes to a semicolon, etc.
-	pub fn restore(self: *Self, av: []Atom) Err!void {
+	pub fn restore(self: *BinBuf, av: []Atom) Error!void {
 		const newsize = binbuf_getnatom(self) + av.len;
 		binbuf_restore(self, av.len, av.ptr);
 		if (binbuf_getnatom(self) != newsize)
-			return Err.BinBufRestore;
+			return Error.BinBufRestore;
 	}
-	extern fn binbuf_restore(*Self, c_int, [*]const Atom) void;
+	extern fn binbuf_restore(*BinBuf, c_int, [*]const Atom) void;
 
 	pub const print = binbuf_print;
-	extern fn binbuf_print(*const Self) void;
+	extern fn binbuf_print(*const BinBuf) void;
 
-	pub fn eval(self: *const Self, target: *Pd, av: []Atom) void {
+	pub fn eval(self: *const BinBuf, target: *Pd, av: []Atom) void {
 		binbuf_eval(self, target, @intCast(av.len), av.ptr);
 	}
-	extern fn binbuf_eval(*const Self, *Pd, c_uint, [*]const Atom) void;
+	extern fn binbuf_eval(*const BinBuf, *Pd, c_uint, [*]const Atom) void;
 
 	pub fn read(
-		self: *Self,
+		self: *BinBuf,
 		filename: [*:0]const u8,
 		dirname: [*:0]const u8,
 		crflag: bool,
-	) Err!void {
+	) Error!void {
 		if (binbuf_read(self, filename, dirname, @intFromBool(crflag)) != 0)
-			return Err.BinBufRead;
+			return Error.BinBufRead;
 	}
-	extern fn binbuf_read(*Self, [*:0]const u8, [*:0]const u8, Bool) Result;
+	extern fn binbuf_read(*BinBuf, [*:0]const u8, [*:0]const u8, Bool) Result;
 
 	pub fn readViaCanvas(
-		self: *Self,
+		self: *BinBuf,
 		filename: [*:0]const u8,
 		canvas: *const cnv.GList,
 		crflag: bool,
-	) Err!void {
+	) Error!void {
 		if (binbuf_read_via_canvas(self, filename, canvas, @intFromBool(crflag)) != 0)
-			return Err.BinBufReadViaCanvas;
+			return Error.BinBufReadViaCanvas;
 	}
 	extern fn binbuf_read_via_canvas(
-		*Self, [*:0]const u8, *const cnv.GList, Bool) Result;
+		*BinBuf, [*:0]const u8, *const cnv.GList, Bool) Result;
 
 	pub fn write(
-		self: *Self,
+		self: *BinBuf,
 		filename: [*:0]const u8,
 		dirname: [*:0]const u8,
 		crflag: bool,
-	) Err!void {
+	) Error!void {
 		if (binbuf_write(self, filename, dirname, @intFromBool(crflag)) != 0)
-			return Err.BinBufWrite;
+			return Error.BinBufWrite;
 	}
-	extern fn binbuf_write(*const Self, [*:0]const u8, [*:0]const u8, Bool) Result;
+	extern fn binbuf_write(*const BinBuf, [*:0]const u8, [*:0]const u8, Bool) Result;
 
-	pub fn resize(self: *Self, newsize: u32) Err!void {
+	pub fn resize(self: *BinBuf, newsize: u32) Error!void {
 		if (binbuf_resize(self, @intCast(newsize)) == 0)
-			return Err.BinBufResize;
+			return Error.BinBufResize;
 	}
-	extern fn binbuf_resize(*Self, c_uint) Bool;
+	extern fn binbuf_resize(*BinBuf, c_uint) Bool;
 
-	pub fn new() Err!*Self {
-		return binbuf_new() orelse Err.BinBufNew;
+	pub fn new() Error!*BinBuf {
+		return binbuf_new() orelse Error.BinBufNew;
 	}
-	extern fn binbuf_new() ?*Self;
+	extern fn binbuf_new() ?*BinBuf;
 
 	/// Public interface to get text buffers by name
-	pub fn fromName(sym: *Symbol) Err!*Self {
-		return text_getbufbyname(sym) orelse Err.BinBufFromName;
+	pub fn fromName(sym: *Symbol) Error!*BinBuf {
+		return text_getbufbyname(sym) orelse Error.BinBufFromName;
 	}
-	extern fn text_getbufbyname(*Self) ?*BinBuf;
+	extern fn text_getbufbyname(*BinBuf) ?*BinBuf;
 };
 
 pub const binbuf = BinBuf.new;
@@ -281,9 +272,13 @@ pub const binbuf = BinBuf.new;
 pub const evalFile = binbuf_evalfile;
 extern fn binbuf_evalfile(name: *Symbol, dir: *Symbol) void;
 
-pub fn realizeDollSym(sym: *Symbol, av: []const Atom, tonew: bool) Error!*Symbol {
+pub fn realizeDollSym(
+	sym: *Symbol,
+	av: []const Atom,
+	tonew: bool
+) error{RealizeDollSym}!*Symbol {
 	return binbuf_realizedollsym(sym, @intCast(av.len), av.ptr, @intFromBool(tonew))
-		orelse Error.RealizeDollSym;
+		orelse error.RealizeDollSym;
 }
 extern fn binbuf_realizedollsym(*Symbol, c_uint, [*]const Atom, Bool) ?*Symbol;
 
@@ -291,34 +286,31 @@ extern fn binbuf_realizedollsym(*Symbol, c_uint, [*]const Atom, Bool) ?*Symbol;
 // ----------------------------------- Clock -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Clock = opaque {
-	const Self = @This();
-
 	pub const Error = error {
 		ClockNew,
 	};
-	const Err = Self.Error;
 
 	pub const free = clock_free;
-	extern fn clock_free(*Self) void;
+	extern fn clock_free(*Clock) void;
 
 	pub const set = clock_set;
-	extern fn clock_set(*Self, systime: f64) void;
+	extern fn clock_set(*Clock, systime: f64) void;
 
 	pub const delay = clock_delay;
-	extern fn clock_delay(*Self, delaytime: f64) void;
+	extern fn clock_delay(*Clock, delaytime: f64) void;
 
 	pub const unset = clock_unset;
-	extern fn clock_unset(*Self) void;
+	extern fn clock_unset(*Clock) void;
 
-	pub fn setUnit(self: *Self, timeunit: f64, in_samples: bool) void {
+	pub fn setUnit(self: *Clock, timeunit: f64, in_samples: bool) void {
 		clock_setunit(self, timeunit, @intFromBool(in_samples));
 	}
-	extern fn clock_setunit(*Self, f64, Bool) void;
+	extern fn clock_setunit(*Clock, f64, Bool) void;
 
-	pub fn new(owner: *anyopaque, func: Method) Err!*Self {
-		return clock_new(owner, func) orelse Err.ClockNew;
+	pub fn new(owner: *anyopaque, func: Method) Error!*Clock {
+		return clock_new(owner, func) orelse Error.ClockNew;
 	}
-	extern fn clock_new(*anyopaque, Method) ?*Self;
+	extern fn clock_new(*anyopaque, Method) ?*Clock;
 };
 
 pub const clock = Clock.new;
@@ -378,48 +370,45 @@ pub const dsp = struct {
 // ---------------------------------- GArray -----------------------------------
 // -----------------------------------------------------------------------------
 pub const GArray = opaque {
-	const Self = @This();
-
 	pub const Error = error {
 		GArrayGetArray,
 		GArrayFloatWords,
 	};
-	const Err = Self.Error;
 
 	pub const redraw = garray_redraw;
-	extern fn garray_redraw(*Self) void;
+	extern fn garray_redraw(*GArray) void;
 
-	pub fn array(self: *Self) Err!*cnv.Array {
-		return garray_getarray(self) orelse Err.GArrayGetArray;
+	pub fn array(self: *GArray) Error!*cnv.Array {
+		return garray_getarray(self) orelse Error.GArrayGetArray;
 	}
-	extern fn garray_getarray(*Self) ?*cnv.Array;
+	extern fn garray_getarray(*GArray) ?*cnv.Array;
 
-	pub fn vec(self: *Self) ![]u8 {
+	pub fn vec(self: *GArray) ![]u8 {
 		const arr = try self.array();
 		return arr.vec[0..arr.len];
 	}
 
 	pub const resize = garray_resize_long;
-	extern fn garray_resize_long(*Self, c_ulong) void;
+	extern fn garray_resize_long(*GArray, c_ulong) void;
 
 	pub const useInDsp = garray_usedindsp;
-	extern fn garray_usedindsp(*Self) void;
+	extern fn garray_usedindsp(*GArray) void;
 
-	pub fn setSaveInPatch(self: *Self, saveit: bool) void {
+	pub fn setSaveInPatch(self: *GArray, saveit: bool) void {
 		garray_setsaveit(self, @intFromBool(saveit));
 	}
-	extern fn garray_setsaveit(*Self, Bool) void;
+	extern fn garray_setsaveit(*GArray, Bool) void;
 
 	pub const glist = garray_getglist;
-	extern fn garray_getglist(*Self) *cnv.GList;
+	extern fn garray_getglist(*GArray) *cnv.GList;
 
-	pub fn floatWords(self: *GArray) Err![]Word {
+	pub fn floatWords(self: *GArray) Error![]Word {
 		var len: c_uint = undefined;
 		var ptr: [*]Word = undefined;
 		return if (garray_getfloatwords(self, &len, &ptr) != 0)
-			ptr[0..len] else Err.GArrayFloatWords;
+			ptr[0..len] else Error.GArrayFloatWords;
 	}
-	extern fn garray_getfloatwords(*Self, *c_uint, vec: *[*]Word) Bool;
+	extern fn garray_getfloatwords(*GArray, *c_uint, vec: *[*]Word) Bool;
 };
 
 
@@ -450,8 +439,6 @@ pub const GStub = extern struct {
 };
 
 pub const GPointer = extern struct {
-	const Self = @This();
-
 	un: extern union {
 		scalar: *Scalar,
 		w: *Word,
@@ -460,35 +447,33 @@ pub const GPointer = extern struct {
 	stub: *GStub,
 
 	pub const init = gpointer_init;
-	extern fn gpointer_init(*Self) void;
+	extern fn gpointer_init(*GPointer) void;
 
 	/// Copy a pointer to another, assuming the second one hasn't yet been
 	/// initialized.  New gpointers should be initialized either by this
 	/// routine or by gpointer_init below.
 	pub const copyTo = gpointer_copy;
-	extern fn gpointer_copy(from: *const Self, to: *Self) void;
+	extern fn gpointer_copy(from: *const GPointer, to: *GPointer) void;
 
 	/// Clear a gpointer that was previously set, releasing the associated
 	/// gstub if this was the last reference to it.
 	pub const unset = gpointer_unset;
-	extern fn gpointer_unset(*Self) void;
+	extern fn gpointer_unset(*GPointer) void;
 
 	/// Call this to verify that a pointer is fresh, i.e., that it either
 	/// points to real data or to the head of a list, and that in either case
 	/// the object hasn't disappeared since this pointer was generated.
 	/// Unless "headok" is set,  the routine also fails for the head of a list.
-	pub fn isValid(self: *Self, headok: bool) bool {
+	pub fn isValid(self: *GPointer, headok: bool) bool {
 		return (gpointer_check(self, @intFromBool(headok)) != 0);
 	}
-	extern fn gpointer_check(*const Self, headok: Bool) Bool;
+	extern fn gpointer_check(*const GPointer, headok: Bool) Bool;
 };
 
 
 // ----------------------------------- Inlet -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Inlet = opaque {
-	const Self = @This();
-
 	pub const Error = error {
 		InletNew,
 		InletNewFloat,
@@ -496,35 +481,34 @@ pub const Inlet = opaque {
 		InletNewSignal,
 		InletNewPointer,
 	};
-	const Err = Self.Error;
 
 	pub const free = inlet_free;
-	extern fn inlet_free(*Self) void;
+	extern fn inlet_free(*Inlet) void;
 
-	pub fn new(obj: *Object, dest: *Pd, from: ?*Symbol, to: ?*Symbol) Err!*Self {
-		return inlet_new(obj, dest, from, to) orelse Err.InletNew;
+	pub fn new(obj: *Object, dest: *Pd, from: ?*Symbol, to: ?*Symbol) Error!*Inlet {
+		return inlet_new(obj, dest, from, to) orelse Error.InletNew;
 	}
-	extern fn inlet_new(*Object, *Pd, ?*Symbol, ?*Symbol) ?*Self;
+	extern fn inlet_new(*Object, *Pd, ?*Symbol, ?*Symbol) ?*Inlet;
 
-	pub fn float(obj: *Object, fp: *Float) Err!*Self {
-		return floatinlet_new(obj, fp) orelse Err.InletNewFloat;
+	pub fn float(obj: *Object, fp: *Float) Error!*Inlet {
+		return floatinlet_new(obj, fp) orelse Error.InletNewFloat;
 	}
-	extern fn floatinlet_new(*Object, *Float) ?*Self;
+	extern fn floatinlet_new(*Object, *Float) ?*Inlet;
 
-	pub fn symbol(obj: *Object, sym: **Symbol) Err!*Self {
-		return symbolinlet_new(obj, sym) orelse Err.InletNewSymbol;
+	pub fn symbol(obj: *Object, sym: **Symbol) Error!*Inlet {
+		return symbolinlet_new(obj, sym) orelse Error.InletNewSymbol;
 	}
-	extern fn symbolinlet_new(*Object, **Symbol) ?*Self;
+	extern fn symbolinlet_new(*Object, **Symbol) ?*Inlet;
 
-	pub fn signal(obj: *Object, f: Float) Err!*Self {
-		return signalinlet_new(obj, f) orelse Err.InletNewSignal;
+	pub fn signal(obj: *Object, f: Float) Error!*Inlet {
+		return signalinlet_new(obj, f) orelse Error.InletNewSignal;
 	}
-	extern fn signalinlet_new(*Object, Float) ?*Self;
+	extern fn signalinlet_new(*Object, Float) ?*Inlet;
 
-	pub fn pointer(obj: *Object, gp: *GPointer) Err!*Self {
-		return pointerinlet_new(obj, gp) orelse Err.InletNewPointer;
+	pub fn pointer(obj: *Object, gp: *GPointer) Error!*Inlet {
+		return pointerinlet_new(obj, gp) orelse Error.InletNewPointer;
 	}
-	extern fn pointerinlet_new(*Object, *GPointer) ?*Self;
+	extern fn pointerinlet_new(*Object, *GPointer) ?*Inlet;
 };
 
 
@@ -579,8 +563,6 @@ pub const GObj = extern struct {
 };
 
 pub const Object = extern struct {
-	const Self = @This();
-
 	/// header for graphical object
 	g: GObj,
 	/// holder for the text
@@ -608,23 +590,23 @@ pub const Object = extern struct {
 		atom,
 	};
 
-	pub fn list(self: *Self, sym: *Symbol, av: []Atom) void {
+	pub fn list(self: *Object, sym: *Symbol, av: []Atom) void {
 		obj_list(self, sym, av.len, av.ptr);
 	}
-	extern fn obj_list(*Self, *Symbol, ac: c_uint, av: [*]Atom) void;
+	extern fn obj_list(*Object, *Symbol, ac: c_uint, av: [*]Atom) void;
 
 	pub const saveFormat = obj_saveformat;
-	extern fn obj_saveformat(*const Self, *BinBuf) void;
+	extern fn obj_saveformat(*const Object, *BinBuf) void;
 
-	pub fn xPix(self: *Self, glist: *cnv.GList) i32 {
+	pub fn xPix(self: *Object, glist: *cnv.GList) i32 {
 		return text_xpix(self, glist);
 	}
-	extern fn text_xpix(*Self, *cnv.GList) c_int;
+	extern fn text_xpix(*Object, *cnv.GList) c_int;
 
-	pub fn yPix(self: *Self, glist: *cnv.GList) i32 {
+	pub fn yPix(self: *Object, glist: *cnv.GList) i32 {
 		return text_ypix(self, glist);
 	}
-	extern fn text_ypix(*Self, *cnv.GList) c_int;
+	extern fn text_ypix(*Object, *cnv.GList) c_int;
 
 	pub const outlet = Outlet.new;
 	pub const inlet = Inlet.new;
@@ -634,7 +616,7 @@ pub const Object = extern struct {
 	pub const inletPointer = Inlet.pointer;
 
 	pub fn inletFloatArg(
-		self: *Self,
+		self: *Object,
 		fp: *Float,
 		av: []const Atom,
 		which: usize
@@ -644,7 +626,7 @@ pub const Object = extern struct {
 	}
 
 	pub fn inletSymbolArg(
-		self: *Self,
+		self: *Object,
 		sp: **Symbol,
 		av: []const Atom,
 		which: usize
@@ -658,113 +640,108 @@ pub const Object = extern struct {
 // ---------------------------------- Outlet -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Outlet = opaque {
-	const Self = @This();
-
 	pub const Error = error {
 		OutletNew,
 	};
-	const Err = Self.Error;
 
 	pub const free = outlet_free;
-	extern fn outlet_free(*Self) void;
+	extern fn outlet_free(*Outlet) void;
 
 	pub const bang = outlet_bang;
-	extern fn outlet_bang(*Self) void;
+	extern fn outlet_bang(*Outlet) void;
 
 	pub const pointer = outlet_pointer;
-	extern fn outlet_pointer(*Self, *GPointer) void;
+	extern fn outlet_pointer(*Outlet, *GPointer) void;
 
 	pub const float = outlet_float;
-	extern fn outlet_float(*Self, Float) void;
+	extern fn outlet_float(*Outlet, Float) void;
 
 	pub const symbol = outlet_symbol;
-	extern fn outlet_symbol(*Self, *Symbol) void;
+	extern fn outlet_symbol(*Outlet, *Symbol) void;
 
-	pub fn list(self: *Self, sym: ?*Symbol, av: []Atom) void {
+	pub fn list(self: *Outlet, sym: ?*Symbol, av: []Atom) void {
 		outlet_list(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn outlet_list(*Self, ?*Symbol, c_uint, [*]Atom) void;
+	extern fn outlet_list(*Outlet, ?*Symbol, c_uint, [*]Atom) void;
 
-	pub fn anything(self: *Self, sym: *Symbol, av: []Atom) void {
+	pub fn anything(self: *Outlet, sym: *Symbol, av: []Atom) void {
 		outlet_anything(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn outlet_anything(*Self, *Symbol, c_uint, [*]Atom) void;
+	extern fn outlet_anything(*Outlet, *Symbol, c_uint, [*]Atom) void;
 
 	/// Get the outlet's declared symbol
 	pub const getSymbol = outlet_getsymbol;
-	extern fn outlet_getsymbol(*Self) *Symbol;
+	extern fn outlet_getsymbol(*Outlet) *Symbol;
 
-	pub fn new(obj: *Object, atype: ?*Symbol) Err!*Self {
-		return outlet_new(obj, atype) orelse Err.OutletNew;
+	pub fn new(obj: *Object, atype: ?*Symbol) Error!*Outlet {
+		return outlet_new(obj, atype) orelse Error.OutletNew;
 	}
-	extern fn outlet_new(*Object, ?*Symbol) ?*Self;
+	extern fn outlet_new(*Object, ?*Symbol) ?*Outlet;
 };
 
 
 // ------------------------------------ Pd -------------------------------------
 // -----------------------------------------------------------------------------
 pub const Pd = extern struct {
-	const Self = @This();
-
 	_: *const imp.Class,
 
 	pub const free = pd_free;
-	extern fn pd_free(*Self) void;
+	extern fn pd_free(*Pd) void;
 
 	pub const bind = pd_bind;
-	extern fn pd_bind(*Self, *Symbol) void;
+	extern fn pd_bind(*Pd, *Symbol) void;
 
 	pub const unbind = pd_unbind;
-	extern fn pd_unbind(*Self, *Symbol) void;
+	extern fn pd_unbind(*Pd, *Symbol) void;
 
 	pub const pushSymbol = pd_pushsym;
-	extern fn pd_pushsym(*Self) void;
+	extern fn pd_pushsym(*Pd) void;
 
 	pub const popSymbol = pd_popsym;
-	extern fn pd_popsym(*Self) void;
+	extern fn pd_popsym(*Pd) void;
 
 	pub const bang = pd_bang;
-	extern fn pd_bang(*Self) void;
+	extern fn pd_bang(*Pd) void;
 
 	pub const pointer = pd_pointer;
-	extern fn pd_pointer(*Self, *GPointer) void;
+	extern fn pd_pointer(*Pd, *GPointer) void;
 
 	pub const float = pd_float;
-	extern fn pd_float(*Self, Float) void;
+	extern fn pd_float(*Pd, Float) void;
 
 	pub const symbol = pd_symbol;
-	extern fn pd_symbol(*Self, *Symbol) void;
+	extern fn pd_symbol(*Pd, *Symbol) void;
 
-	pub fn list(self: *Self, sym: ?*Symbol, av: []Atom) void {
+	pub fn list(self: *Pd, sym: ?*Symbol, av: []Atom) void {
 		pd_list(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn pd_list(*Self, ?*Symbol, c_uint, [*]Atom) void;
+	extern fn pd_list(*Pd, ?*Symbol, c_uint, [*]Atom) void;
 
-	pub fn anything(self: *Self, sym: *Symbol, av: []Atom) void {
+	pub fn anything(self: *Pd, sym: *Symbol, av: []Atom) void {
 		pd_anything(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn pd_anything(*Self, *Symbol, c_uint, [*]Atom) void;
+	extern fn pd_anything(*Pd, *Symbol, c_uint, [*]Atom) void;
 
-	pub fn typedMess(self: *Self, sym: ?*Symbol, av: []Atom) void {
+	pub fn typedMess(self: *Pd, sym: ?*Symbol, av: []Atom) void {
 		pd_typedmess(self, sym, @intCast(av.len), av.ptr);
 	}
-	extern fn pd_typedmess(*Self, ?*Symbol, c_uint, [*]Atom) void;
+	extern fn pd_typedmess(*Pd, ?*Symbol, c_uint, [*]Atom) void;
 
-	pub fn forwardMess(self: *Self, av: []Atom) void {
+	pub fn forwardMess(self: *Pd, av: []Atom) void {
 		pd_forwardmess(self, @intCast(av.len), av.ptr);
 	}
-	extern fn pd_forwardmess(*Self, c_uint, [*]Atom) void;
+	extern fn pd_forwardmess(*Pd, c_uint, [*]Atom) void;
 
 	/// Checks that a pd is indeed a patchable object, and returns
 	/// it, correctly typed, or null if the check failed.
 	pub const checkObject = pd_checkobject;
-	extern fn pd_checkobject(*Self) ?*Object;
+	extern fn pd_checkobject(*Pd) ?*Object;
 
 	pub const parentWidget = pd_getparentwidget;
-	extern fn pd_getparentwidget(*Self) ?*const cnv.parent.WidgetBehavior;
+	extern fn pd_getparentwidget(*Pd) ?*const cnv.parent.WidgetBehavior;
 
 	pub fn stub(
-		self: *Self,
+		self: *Pd,
 		dest: [*:0]const u8,
 		key: *anyopaque,
 		fmt: [*:0]const u8,
@@ -772,13 +749,13 @@ pub const Pd = extern struct {
 	) void {
 		@call(.auto, pdgui_stub_vnew, .{ self, dest, key, fmt } ++ args);
 	}
-	extern fn pdgui_stub_vnew(*Self, [*:0]const u8, *anyopaque, [*:0]const u8, ...) void;
+	extern fn pdgui_stub_vnew(*Pd, [*:0]const u8, *anyopaque, [*:0]const u8, ...) void;
 
 	pub const func = getfn;
-	extern fn getfn(*const Self, *Symbol) GotFn;
+	extern fn getfn(*const Pd, *Symbol) GotFn;
 
 	pub const zFunc = zgetfn;
-	extern fn zgetfn(*const Self, *Symbol) GotFn;
+	extern fn zgetfn(*const Pd, *Symbol) GotFn;
 
 	/// This is externally available, but note that it might later disappear; the
 	/// whole "newest" thing is a hack which needs to be redesigned.
@@ -792,8 +769,6 @@ pub const Pd = extern struct {
 // --------------------------------- Resample ----------------------------------
 // -----------------------------------------------------------------------------
 pub const Resample = extern struct {
-	const Self = @This();
-
 	const Converter = enum(c_uint) {
 		zero_padding = 0,
 		zero_order_hold = 1,
@@ -821,37 +796,34 @@ pub const Resample = extern struct {
 	buf_size: c_uint,
 
 	pub const free = resample_free;
-	extern fn resample_free(*Self) void;
+	extern fn resample_free(*Resample) void;
 
 	pub const init = resample_init;
-	extern fn resample_init(*Self) void;
+	extern fn resample_init(*Resample) void;
 
-	pub fn dsp(self: *Self, in: []Sample, out: []Sample, conv: Converter) void {
+	pub fn dsp(self: *Resample, in: []Sample, out: []Sample, conv: Converter) void {
 		resample_dsp(self, in.ptr, @intCast(in.len), out.ptr, @intCast(out.len), conv);
 	}
-	extern fn resample_dsp(*Self, *Sample, c_uint, *Sample, c_uint, Converter) void;
+	extern fn resample_dsp(*Resample, *Sample, c_uint, *Sample, c_uint, Converter) void;
 
-	pub fn dspFrom(self: *Self, in: []Sample, out_len: usize, conv: Converter) void {
+	pub fn dspFrom(self: *Resample, in: []Sample, out_len: usize, conv: Converter) void {
 		resamplefrom_dsp(self, in.ptr, @intCast(in.len), @intCast(out_len), conv);
 	}
-	extern fn resamplefrom_dsp(*Self, *Sample, c_uint, c_uint, Converter) void;
+	extern fn resamplefrom_dsp(*Resample, *Sample, c_uint, c_uint, Converter) void;
 
-	pub fn dspTo(self: *Self, out: []Sample, in_len: usize, conv: Converter) void {
+	pub fn dspTo(self: *Resample, out: []Sample, in_len: usize, conv: Converter) void {
 		resampleto_dsp(self, out.ptr, @intCast(in_len), @intCast(out.len), conv);
 	}
-	extern fn resampleto_dsp(*Self, *Sample, c_uint, c_uint, Converter) void;
+	extern fn resampleto_dsp(*Resample, *Sample, c_uint, c_uint, Converter) void;
 };
 
 
 // ---------------------------------- Signal -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Signal = extern struct {
-	const Self = @This();
-
 	pub const Error = error {
 		SignalNew,
 	};
-	const Err = Self.Error;
 
 	len: c_uint,
 	vec: [*]Sample,
@@ -861,9 +833,9 @@ pub const Signal = extern struct {
 	refcount: c_uint,
 	isborrowed: c_uint,
 	isscalar: c_uint,
-	borrowedfrom: ?*Self,
-	nextfree: ?*Self,
-	nextused: ?*Self,
+	borrowedfrom: ?*Signal,
+	nextfree: ?*Signal,
+	nextused: ?*Signal,
 	nalloc: c_uint,
 
 	/// Pop an audio signal from free list or create a new one.
@@ -878,17 +850,17 @@ pub const Signal = extern struct {
 		nchans: u32,
 		samplerate: Float,
 		scalarptr: *Sample
-	) Err!*Self {
-		return signal_new(length, nchans, samplerate, scalarptr) orelse Err.SignalNew;
+	) Error!*Signal {
+		return signal_new(length, nchans, samplerate, scalarptr) orelse Error.SignalNew;
 	}
-	extern fn signal_new(c_uint, c_uint, Float, *Sample) ?*Self;
+	extern fn signal_new(c_uint, c_uint, Float, *Sample) ?*Signal;
 
 	/// Only use this in the context of dsp routines to set number of channels
 	/// on output signal - we assume it's currently a pointer to the null signal.
-	pub fn setMultiOut(sig: **Self, nchans: u32) void {
+	pub fn setMultiOut(sig: **Signal, nchans: u32) void {
 		signal_setmultiout(sig, nchans);
 	}
-	extern fn signal_setmultiout(**Self, c_uint) void;
+	extern fn signal_setmultiout(**Signal, c_uint) void;
 };
 
 pub const signal = Signal.new;
@@ -897,14 +869,12 @@ pub const signal = Signal.new;
 // ---------------------------------- Symbol -----------------------------------
 // -----------------------------------------------------------------------------
 pub const Symbol = extern struct {
-	const Self = @This();
-
 	name: [*:0]const u8,
 	thing: ?*Pd,
-	next: ?*Self,
+	next: ?*Symbol,
 
 	pub const gen = gensym;
-	extern fn gensym([*:0]const u8) *Self; // could run out of memory
+	extern fn gensym([*:0]const u8) *Symbol; // could run out of memory
 };
 
 pub const symbol = Symbol.gen;
@@ -1054,7 +1024,6 @@ pub const value = struct {
 		ValueGet,
 		ValueSet,
 	};
-	const Err = @This().Error;
 
 	/// Get a pointer to a named floating-point variable.  The variable
 	/// belongs to a `vcommon` object, which is created if necessary.
@@ -1065,15 +1034,15 @@ pub const value = struct {
 	extern fn value_release(*Symbol) void;
 
 	/// obtain the float value of a "value" object
-	pub fn get(sym: *Symbol, f: *Float) Err!void {
+	pub fn get(sym: *Symbol, f: *Float) Error!void {
 		if (value_getfloat(sym, f) != 0)
-			return Err.ValueGet;
+			return Error.ValueGet;
 	}
 	extern fn value_getfloat(*Symbol, *Float) Result;
 
-	pub fn set(sym: *Symbol, f: Float) Err!void {
+	pub fn set(sym: *Symbol, f: Float) Error!void {
 		if (value_setfloat(sym, f) != 0)
-			return Err.ValueSet;
+			return Error.ValueSet;
 	}
 	extern fn value_setfloat(*Symbol, Float) Result;
 };
