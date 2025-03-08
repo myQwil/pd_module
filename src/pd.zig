@@ -515,43 +515,130 @@ pub const Inlet = opaque {
 // ---------------------------------- Memory -----------------------------------
 // -----------------------------------------------------------------------------
 const Allocator = std.mem.Allocator;
-const assert = std.debug.assert;
 
-fn alloc(_: *anyopaque, len: usize, _: u8, _: usize) ?[*]u8 {
-	assert(len > 0);
-	return @ptrCast(getbytes(len));
-}
-extern fn getbytes(usize) ?*anyopaque;
+const PdAllocator = struct {
+	const builtin = @import("builtin");
+	const Alignment = std.mem.Alignment;
+	extern fn getbytes(usize) ?*anyopaque;
+	extern fn freebytes(*anyopaque, usize) void;
 
-extern "c" fn _msize(?*anyopaque) usize;
-extern "c" fn malloc_size(?*const anyopaque) usize;
-extern "c" fn malloc_usable_size(?*const anyopaque) usize;
+	const vtable: Allocator.VTable = .{
+		.alloc = alloc,
+		.resize = resize,
+		.remap = remap,
+		.free = free,
+	};
 
-const alloc_size = switch (@import("builtin").os.tag) {
-	.windows => _msize,
-	.macos, .ios, .tvos, .watchos, .visionos => malloc_size,
-	.freebsd, .linux => malloc_usable_size,
-	else => {},
+	const malloc_size = if (@TypeOf(std.c.malloc_size) != void) std.c.malloc_size
+	else if (@TypeOf(std.c.malloc_usable_size) != void) std.c.malloc_usable_size
+	else if (@TypeOf(std.c._msize) != void) std.c._msize
+	else {};
+
+	const supports_posix_memalign = switch (builtin.os.tag) {
+		.dragonfly, .netbsd, .freebsd, .solaris, .openbsd, .linux,
+		.macos, .ios, .tvos, .watchos, .visionos => true,
+		else => false,
+	};
+
+	fn getHeader(ptr: [*]u8) *[*]u8 {
+		return @alignCast(@ptrCast(ptr - @sizeOf(usize)));
+	}
+
+	fn alignedAlloc(len: usize, alignment: Alignment) ?[*]u8 {
+		const alignment_bytes = alignment.toByteUnits();
+		if (supports_posix_memalign) {
+			// The posix_memalign only accepts alignment values that are a
+			// multiple of the pointer size
+			const effective_alignment = @max(alignment_bytes, @sizeOf(usize));
+
+			var aligned_ptr: ?*anyopaque = undefined;
+			if (std.c.posix_memalign(&aligned_ptr, effective_alignment, len) != 0)
+				return null;
+
+			return @ptrCast(aligned_ptr);
+		}
+
+		// Thin wrapper around regular malloc, overallocate to account for
+		// alignment padding and store the original malloc()'ed pointer before
+		// the aligned address.
+		const ptr = getbytes(len + alignment_bytes - 1 + @sizeOf(usize));
+		const unaligned_ptr = @as([*]u8, @ptrCast(ptr orelse return null));
+		const unaligned_addr = @intFromPtr(unaligned_ptr);
+		const aligned_addr = std.mem.alignForward(usize,
+			unaligned_addr + @sizeOf(usize), alignment_bytes);
+		const aligned_ptr = unaligned_ptr + (aligned_addr - unaligned_addr);
+		getHeader(aligned_ptr).* = unaligned_ptr;
+
+		return aligned_ptr;
+	}
+
+	fn alloc(
+		_: *anyopaque,
+		len: usize,
+		alignment: Alignment,
+		return_address: usize,
+	) ?[*]u8 {
+		_ = return_address;
+		std.debug.assert(len > 0);
+		return alignedAlloc(len, alignment);
+	}
+
+	fn alignedAllocSize(ptr: [*]u8) usize {
+		if (supports_posix_memalign) {
+			return malloc_size(ptr);
+		}
+
+		const unaligned_ptr = getHeader(ptr).*;
+		const delta = @intFromPtr(ptr) - @intFromPtr(unaligned_ptr);
+		return malloc_size(unaligned_ptr) - delta;
+	}
+
+	fn resize(
+		_: *anyopaque,
+		buf: []u8,
+		alignment: Alignment,
+		new_len: usize,
+		return_address: usize,
+	) bool {
+		_ = alignment;
+		_ = return_address;
+		return new_len <= buf.len
+			or (@TypeOf(malloc_size) != void and new_len <= alignedAllocSize(buf.ptr));
+	}
+
+	fn remap(
+		context: *anyopaque,
+		memory: []u8,
+		alignment: Alignment,
+		new_len: usize,
+		return_address: usize,
+	) ?[*]u8 {
+		// realloc would potentially return a new allocation that does not
+		// respect the original alignment.
+		return if (resize(context, memory, alignment, new_len, return_address))
+			memory.ptr else null;
+	}
+
+	fn free(
+		_: *anyopaque,
+		buf: []u8,
+		alignment: Alignment,
+		return_address: usize,
+	) void {
+		_ = alignment;
+		_ = return_address;
+		if (supports_posix_memalign) {
+			return freebytes(buf.ptr, buf.len);
+		}
+
+		const unaligned_ptr = getHeader(buf.ptr).*;
+		freebytes(unaligned_ptr, buf.len);
+	}
 };
 
-fn resize(_: *anyopaque, buf: []u8, _: u8, new_len: usize, _: usize) bool {
-	return (new_len <= buf.len
-		or (@TypeOf(alloc_size) != void and new_len <= alloc_size(buf.ptr)));
-}
-
-fn free(_: *anyopaque, buf: []u8, _: u8, _: usize) void {
-	freebytes(buf.ptr, buf.len);
-}
-extern fn freebytes(*anyopaque, usize) void;
-
-const mem_vtable = Allocator.VTable{
-	.alloc = alloc,
-	.resize = resize,
-	.free = free,
-};
 pub const mem = Allocator{
 	.ptr = undefined,
-	.vtable = &mem_vtable,
+	.vtable = &PdAllocator.vtable,
 };
 
 
@@ -1192,7 +1279,7 @@ pub fn fft(buf: []Float, inverse: bool) void {
 }
 extern fn pd_fft([*]Float, c_uint, Bool) void;
 
-const ushift = std.meta.Int(.unsigned, @log2(@as(f32, @bitSizeOf(usize))));
+const ushift = std.meta.Int(.unsigned, @log2(@as(Float, @bitSizeOf(usize))));
 pub fn ulog2(n: usize) ushift {
 	var i = n;
 	var r: ushift = 0;
@@ -1240,9 +1327,9 @@ extern fn pdgui_vmess(?[*:0]const u8, [*:0]const u8, ...) void;
 pub const deleteStubForKey = pdgui_stub_deleteforkey;
 extern fn pdgui_stub_deleteforkey(key: *anyopaque) void;
 
-pub const float_bits = @bitSizeOf(Float);
-pub const mantissa_bits = std.math.floatMantissaBits(Float);
-pub const exponent_bits = std.math.floatExponentBits(Float);
+const float_bits = @bitSizeOf(Float);
+const mantissa_bits = std.math.floatMantissaBits(Float);
+const exponent_bits = std.math.floatExponentBits(Float);
 const exp_mask = ((1 << exponent_bits) - 1) << mantissa_bits;
 const bos_mask = 1 << (float_bits - 3);
 
