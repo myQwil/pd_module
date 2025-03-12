@@ -14,10 +14,7 @@ pub const Method = ?*const fn () callconv(.C) void;
 pub const NewMethod = ?*const fn () callconv(.C) ?*anyopaque;
 
 pub const Class = imp.Class;
-pub const class = Class.new;
-
 pub const Gui = iem.Gui;
-pub const gui = Gui.new;
 
 pub const Word = extern union {
 	// we're going to trust pd to give us valid pointers of the respective types
@@ -260,8 +257,6 @@ pub const BinBuf = opaque {
 	extern fn text_getbufbyname(*BinBuf) ?*BinBuf;
 };
 
-pub const binbuf = BinBuf.new;
-
 pub const evalFile = binbuf_evalfile;
 extern fn binbuf_evalfile(name: *Symbol, dir: *Symbol) void;
 
@@ -305,8 +300,6 @@ pub const Clock = opaque {
 	}
 	extern fn clock_new(*anyopaque, Method) ?*Clock;
 };
-
-pub const clock = Clock.new;
 
 pub const time = clock_getlogicaltime;
 extern fn clock_getlogicaltime() f64;
@@ -692,7 +685,7 @@ pub const Object = extern struct {
 		self: *Object,
 		fp: *Float,
 		av: []const Atom,
-		which: c_uint
+		which: c_uint,
 	) Inlet.Error!*Inlet {
 		fp.* = floatArg(av, which);
 		return self.inletFloat(fp);
@@ -702,7 +695,7 @@ pub const Object = extern struct {
 		self: *Object,
 		sp: **Symbol,
 		av: []const Atom,
-		which: usize
+		which: c_uint,
 	) Inlet.Error!*Inlet {
 		sp.* = symbolArg(av, which);
 		return self.inletSymbol(sp);
@@ -934,8 +927,6 @@ pub const Signal = extern struct {
 	extern fn signal_setmultiout(**Signal, c_uint) void;
 };
 
-pub const signal = Signal.new;
-
 
 // ---------------------------------- Symbol -----------------------------------
 // -----------------------------------------------------------------------------
@@ -947,8 +938,6 @@ pub const Symbol = extern struct {
 	pub const gen = gensym;
 	extern fn gensym([*:0]const u8) *Symbol; // could run out of memory
 };
-
-pub const symbol = Symbol.gen;
 
 pub const setExternDir = class_set_extern_dir;
 extern fn class_set_extern_dir(*Symbol) void;
