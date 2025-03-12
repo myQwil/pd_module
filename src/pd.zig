@@ -5,11 +5,6 @@ pub const iem = @import("all_guis.zig");
 
 const strlen = std.mem.len;
 
-/// non-zero on success/true
-const Bool = c_uint;
-/// zero on success, otherwise represents an error
-const Result = c_int;
-
 pub extern const pd_compatibilitylevel: c_int;
 
 pub const Float = std.meta.Float(@import("options").float_size);
@@ -222,7 +217,7 @@ pub const BinBuf = opaque {
 		if (binbuf_read(self, filename, dirname, @intFromBool(crflag)) != 0)
 			return Error.BinBufRead;
 	}
-	extern fn binbuf_read(*BinBuf, [*:0]const u8, [*:0]const u8, Bool) Result;
+	extern fn binbuf_read(*BinBuf, [*:0]const u8, [*:0]const u8, c_uint) c_int;
 
 	pub fn readViaCanvas(
 		self: *BinBuf,
@@ -234,7 +229,7 @@ pub const BinBuf = opaque {
 			return Error.BinBufReadViaCanvas;
 	}
 	extern fn binbuf_read_via_canvas(
-		*BinBuf, [*:0]const u8, *const cnv.GList, Bool) Result;
+		*BinBuf, [*:0]const u8, *const cnv.GList, c_uint) c_int;
 
 	pub fn write(
 		self: *BinBuf,
@@ -245,13 +240,13 @@ pub const BinBuf = opaque {
 		if (binbuf_write(self, filename, dirname, @intFromBool(crflag)) != 0)
 			return Error.BinBufWrite;
 	}
-	extern fn binbuf_write(*const BinBuf, [*:0]const u8, [*:0]const u8, Bool) Result;
+	extern fn binbuf_write(*const BinBuf, [*:0]const u8, [*:0]const u8, c_uint) c_int;
 
 	pub fn resize(self: *BinBuf, newsize: c_uint) Error!void {
 		if (binbuf_resize(self, newsize) == 0)
 			return Error.BinBufResize;
 	}
-	extern fn binbuf_resize(*BinBuf, c_uint) Bool;
+	extern fn binbuf_resize(*BinBuf, c_uint) c_uint;
 
 	pub fn new() Error!*BinBuf {
 		return binbuf_new() orelse Error.BinBufNew;
@@ -278,7 +273,7 @@ pub fn realizeDollSym(
 	return binbuf_realizedollsym(sym, @intCast(av.len), av.ptr, @intFromBool(tonew))
 		orelse error.RealizeDollSym;
 }
-extern fn binbuf_realizedollsym(*Symbol, c_uint, [*]const Atom, Bool) ?*Symbol;
+extern fn binbuf_realizedollsym(*Symbol, c_uint, [*]const Atom, c_uint) ?*Symbol;
 
 
 // ----------------------------------- Clock -----------------------------------
@@ -303,7 +298,7 @@ pub const Clock = opaque {
 	pub fn setUnit(self: *Clock, timeunit: f64, in_samples: bool) void {
 		clock_setunit(self, timeunit, @intFromBool(in_samples));
 	}
-	extern fn clock_setunit(*Clock, f64, Bool) void;
+	extern fn clock_setunit(*Clock, f64, c_uint) void;
 
 	pub fn new(owner: *anyopaque, func: Method) Error!*Clock {
 		return clock_new(owner, func) orelse Error.ClockNew;
@@ -325,7 +320,7 @@ extern fn clock_getsystimeafter(delaytime: f64) f64;
 pub fn timeSinceWithUnits(prevsystime: f64, units: f64, in_samples: bool) f64 {
 	return clock_gettimesincewithunits(prevsystime, units, @intFromBool(in_samples));
 }
-extern fn clock_gettimesincewithunits(f64, f64, Bool) f64;
+extern fn clock_gettimesincewithunits(f64, f64, c_uint) f64;
 
 
 // ------------------------------------ Dsp ------------------------------------
@@ -392,7 +387,7 @@ pub const GArray = opaque {
 	pub fn setSaveInPatch(self: *GArray, saveit: bool) void {
 		garray_setsaveit(self, @intFromBool(saveit));
 	}
-	extern fn garray_setsaveit(*GArray, Bool) void;
+	extern fn garray_setsaveit(*GArray, c_uint) void;
 
 	pub const glist = garray_getglist;
 	extern fn garray_getglist(*GArray) *cnv.GList;
@@ -403,7 +398,7 @@ pub const GArray = opaque {
 		return if (garray_getfloatwords(self, &len, &ptr) != 0)
 			ptr[0..len] else Error.GArrayFloatWords;
 	}
-	extern fn garray_getfloatwords(*GArray, *c_uint, vec: *[*]Word) Bool;
+	extern fn garray_getfloatwords(*GArray, *c_uint, vec: *[*]Word) c_uint;
 };
 
 
@@ -462,7 +457,7 @@ pub const GPointer = extern struct {
 	pub fn isValid(self: *GPointer, headok: bool) bool {
 		return (gpointer_check(self, @intFromBool(headok)) != 0);
 	}
-	extern fn gpointer_check(*const GPointer, headok: Bool) Bool;
+	extern fn gpointer_check(*const GPointer, headok: c_uint) c_uint;
 };
 
 
@@ -1020,7 +1015,7 @@ pub const unlock = sys_unlock;
 extern fn sys_unlock() void;
 
 pub const tryLock = sys_trylock;
-extern fn sys_trylock() Result;
+extern fn sys_trylock() c_int;
 
 pub const hostFontSize = sys_hostfontsize;
 extern fn sys_hostfontsize(c_uint, c_uint) c_uint;
@@ -1044,7 +1039,7 @@ extern fn sys_fontheight(c_uint) c_uint;
 pub fn isAbsolutePath(dir: [*:0]const u8) bool {
 	return (sys_isabsolutepath(dir) != 0);
 }
-extern fn sys_isabsolutepath([*:0]const u8) Bool;
+extern fn sys_isabsolutepath([*:0]const u8) c_uint;
 
 pub const currentDir = canvas_getcurrentdir;
 extern fn canvas_getcurrentdir() *Symbol;
@@ -1056,12 +1051,12 @@ extern fn canvas_getcurrentdir() *Symbol;
 pub fn suspendDsp() bool {
 	return (canvas_suspend_dsp() != 0);
 }
-extern fn canvas_suspend_dsp() Bool;
+extern fn canvas_suspend_dsp() c_uint;
 
 pub fn resumeDsp(old_state: bool) void {
 	canvas_resume_dsp(@intFromBool(old_state));
 }
-extern fn canvas_resume_dsp(Bool) void;
+extern fn canvas_resume_dsp(c_uint) void;
 
 /// this is equivalent to suspending and resuming in one step.
 pub const updateDsp = canvas_update_dsp;
@@ -1076,7 +1071,7 @@ extern fn pd_getcanvaslist() *cnv.GList;
 pub fn dspState() bool {
 	return (pd_getdspstate() != 0);
 }
-extern fn pd_getdspstate() Bool;
+extern fn pd_getdspstate() c_uint;
 
 
 // ----------------------------------- Value -----------------------------------
@@ -1100,13 +1095,13 @@ pub const value = struct {
 		if (value_getfloat(sym, f) != 0)
 			return Error.ValueGet;
 	}
-	extern fn value_getfloat(*Symbol, *Float) Result;
+	extern fn value_getfloat(*Symbol, *Float) c_int;
 
 	pub fn set(sym: *Symbol, f: Float) Error!void {
 		if (value_setfloat(sym, f) != 0)
 			return Error.ValueSet;
 	}
-	extern fn value_setfloat(*Symbol, Float) Result;
+	extern fn value_setfloat(*Symbol, Float) c_int;
 };
 
 
@@ -1246,7 +1241,7 @@ pub const mayer = struct {
 pub fn fft(buf: []Float, inverse: bool) void {
 	pd_fft(buf.ptr, @intCast(buf.len), @intFromBool(inverse));
 }
-extern fn pd_fft([*]Float, c_uint, Bool) void;
+extern fn pd_fft([*]Float, c_uint, c_uint) void;
 
 const ushift = std.meta.Int(.unsigned, @log2(@as(Float, @bitSizeOf(usize))));
 pub fn ulog2(n: usize) ushift {
