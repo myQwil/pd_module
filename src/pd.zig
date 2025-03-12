@@ -94,18 +94,18 @@ pub fn addCreator(
 }
 extern fn class_addcreator(NewMethod, *Symbol, c_uint, ...) void;
 
-pub fn intArg(av: []const Atom, which: usize) isize {
-	return atom_getintarg(@intCast(which), @intCast(av.len), av.ptr);
+pub fn intArg(av: []const Atom, which: c_uint) isize {
+	return atom_getintarg(which, @intCast(av.len), av.ptr);
 }
 extern fn atom_getintarg(c_uint, c_uint, [*]const Atom) isize;
 
-pub fn floatArg(av: []const Atom, which: usize) Float {
-	return atom_getfloatarg(@intCast(which), @intCast(av.len), av.ptr);
+pub fn floatArg(av: []const Atom, which: c_uint) Float {
+	return atom_getfloatarg(which, @intCast(av.len), av.ptr);
 }
 extern fn atom_getfloatarg(c_uint, c_uint, [*]const Atom) Float;
 
-pub fn symbolArg(av: []const Atom, which: usize) *Symbol {
-	return atom_getsymbolarg(@intCast(which), @intCast(av.len), av.ptr);
+pub fn symbolArg(av: []const Atom, which: c_uint) *Symbol {
+	return atom_getsymbolarg(which, @intCast(av.len), av.ptr);
 }
 extern fn atom_getsymbolarg(c_uint, c_uint, [*]const Atom) *Symbol;
 
@@ -136,9 +136,7 @@ pub const BinBuf = opaque {
 	}
 	extern fn binbuf_duplicate(*const BinBuf) ?*BinBuf;
 
-	pub fn len(self: *const BinBuf) u32 {
-		return binbuf_getnatom(self);
-	}
+	pub const len = binbuf_getnatom;
 	extern fn binbuf_getnatom(*const BinBuf) c_uint;
 
 	pub fn vec(self: *BinBuf) []Atom {
@@ -146,12 +144,12 @@ pub const BinBuf = opaque {
 	}
 	extern fn binbuf_getvec(*const BinBuf) [*]Atom;
 
-	pub fn fromText(self: *BinBuf, txt: [:0]const u8) Error!*void {
+	pub fn fromText(self: *BinBuf, txt: []const u8) Error!*void {
 		binbuf_text(self, txt.ptr, txt.len);
 		if (binbuf_getnatom(self) == 0)
 			return Error.BinBufFromText;
 	}
-	extern fn binbuf_text(*BinBuf, [*:0]const u8, usize) void;
+	extern fn binbuf_text(*BinBuf, [*]const u8, usize) void;
 
 	/// Convert a binbuf to text. No null termination.
 	pub fn text(self: *const BinBuf) []u8 {
@@ -249,8 +247,8 @@ pub const BinBuf = opaque {
 	}
 	extern fn binbuf_write(*const BinBuf, [*:0]const u8, [*:0]const u8, Bool) Result;
 
-	pub fn resize(self: *BinBuf, newsize: u32) Error!void {
-		if (binbuf_resize(self, @intCast(newsize)) == 0)
+	pub fn resize(self: *BinBuf, newsize: c_uint) Error!void {
+		if (binbuf_resize(self, newsize) == 0)
 			return Error.BinBufResize;
 	}
 	extern fn binbuf_resize(*BinBuf, c_uint) Bool;
@@ -345,24 +343,21 @@ pub const dsp = struct {
 	}
 	extern fn dsp_addv(PerfRoutine, c_uint, [*]usize) void;
 
-	pub fn addPlus(in1: [*]Sample, in2: [*]Sample, out: [*]Sample, n: usize) void {
-		dsp_add_plus(in1, in2, out, @intCast(n));
-	}
-	extern fn dsp_add_plus([*]Sample, [*]Sample, [*]Sample, c_uint) void;
+	pub const addPlus = dsp_add_plus;
+	extern fn dsp_add_plus(
+		in1: [*]Sample,
+		in2: [*]Sample,
+		out: [*]Sample,
+		n: c_uint
+	) void;
 
-	pub fn addCopy(in1: [*]Sample, out: [*]Sample, n: usize) void {
-		dsp_add_copy(in1, out, @intCast(n));
-	}
-	extern fn dsp_add_copy([*]Sample, [*]Sample, c_uint) void;
+	pub const addCopy = dsp_add_copy;
+	extern fn dsp_add_copy(in: [*]Sample, out: [*]Sample, n: c_uint) void;
 
-	pub fn addScalarCopy(in: [*]Float, out: [*]Sample, n: usize) void {
-		dsp_add_scalarcopy(in, out, @intCast(n));
-	}
-	extern fn dsp_add_scalarcopy([*]Float, [*]Sample, c_uint) void;
+	pub const addScalarCopy = dsp_add_scalarcopy;
+	extern fn dsp_add_scalarcopy(in: [*]Float, out: [*]Sample, n: c_uint) void;
 
-	pub fn addZero(out: [*]Sample, n: usize) void {
-		dsp_add_zero(out, @intCast(n));
-	}
+	pub const addZero = dsp_add_zero;
 	extern fn dsp_add_zero([*]Sample, c_uint) void;
 };
 
@@ -685,14 +680,10 @@ pub const Object = extern struct {
 	pub const saveFormat = obj_saveformat;
 	extern fn obj_saveformat(*const Object, *BinBuf) void;
 
-	pub fn xPix(self: *Object, glist: *cnv.GList) i32 {
-		return text_xpix(self, glist);
-	}
+	pub const xPix = text_xpix;
 	extern fn text_xpix(*Object, *cnv.GList) c_int;
 
-	pub fn yPix(self: *Object, glist: *cnv.GList) i32 {
-		return text_ypix(self, glist);
-	}
+	pub const yPix = text_ypix;
 	extern fn text_ypix(*Object, *cnv.GList) c_int;
 
 	pub const outlet = Outlet.new;
@@ -706,7 +697,7 @@ pub const Object = extern struct {
 		self: *Object,
 		fp: *Float,
 		av: []const Atom,
-		which: usize
+		which: c_uint
 	) Inlet.Error!*Inlet {
 		fp.* = floatArg(av, which);
 		return self.inletFloat(fp);
@@ -933,8 +924,8 @@ pub const Signal = extern struct {
 	/// signal whose buffer and size will be obtained later via
 	/// `signal_setborrowed()`.
 	pub fn new(
-		length: u32,
-		nchans: u32,
+		length: c_uint,
+		nchans: c_uint,
 		samplerate: Float,
 		scalarptr: *Sample
 	) Error!*Signal {
@@ -944,9 +935,7 @@ pub const Signal = extern struct {
 
 	/// Only use this in the context of dsp routines to set number of channels
 	/// on output signal - we assume it's currently a pointer to the null signal.
-	pub fn setMultiOut(sig: **Signal, nchans: u32) void {
-		signal_setmultiout(sig, nchans);
-	}
+	pub const setMultiOut = signal_setmultiout;
 	extern fn signal_setmultiout(**Signal, c_uint) void;
 };
 
@@ -990,29 +979,21 @@ pub extern var s_: Symbol;
 // -----------------------------------------------------------------------------
 pub const GuiCallbackFn = ?*const fn (*GObj, *cnv.GList) callconv(.C) void;
 
-pub fn blockSize() u32 {
-	return sys_getblksize();
-}
+pub const blockSize = sys_getblksize;
 extern fn sys_getblksize() c_uint;
 
 pub const sampleRate = sys_getsr;
 extern fn sys_getsr() Float;
 
-pub fn inChannels() u32 {
-	return sys_get_inchannels();
-}
+pub const inChannels = sys_get_inchannels;
 extern fn sys_get_inchannels() c_uint;
 
-pub fn outChannels() u32 {
-	return sys_get_outchannels();
-}
+pub const outChannels = sys_get_outchannels;
 extern fn sys_get_outchannels() c_uint;
 
 /// If some GUI object is having to do heavy computations, it can tell
 /// us to back off from doing more updates by faking a big one itself.
-pub fn pretendGuiBytes(n: u32) void {
-	sys_pretendguibytes(n);
-}
+pub const pretendGuiBytes = sys_pretendguibytes;
 extern fn sys_pretendguibytes(c_uint) void;
 
 pub const queueGui = sys_queuegui;
@@ -1041,29 +1022,23 @@ extern fn sys_unlock() void;
 pub const tryLock = sys_trylock;
 extern fn sys_trylock() Result;
 
-pub fn hostFontSize(fontsize: u32, zoom: u32) u32 {
-	return sys_hostfontsize(fontsize, zoom);
-}
+pub const hostFontSize = sys_hostfontsize;
 extern fn sys_hostfontsize(c_uint, c_uint) c_uint;
 
-pub fn zoomFontWidth(fontsize: u32, zoom: u32, worst_case: bool) u32 {
+pub fn zoomFontWidth(fontsize: c_uint, zoom: c_uint, worst_case: bool) c_uint {
 	return sys_zoomfontwidth(fontsize, zoom, @intFromBool(worst_case));
 }
 extern fn sys_zoomfontwidth(c_uint, c_uint, c_uint) c_uint;
 
-pub fn zoomFontHeight(fontsize: u32, zoom: u32, worst_case: bool) u32 {
+pub fn zoomFontHeight(fontsize: c_uint, zoom: c_uint, worst_case: bool) c_uint {
 	return sys_zoomfontheight(fontsize, zoom, @intFromBool(worst_case));
 }
 extern fn sys_zoomfontheight(c_uint, c_uint, c_uint) c_uint;
 
-pub fn fontWidth(fontsize: u32) u32 {
-	return sys_fontwidth(fontsize);
-}
+pub const fontWidth = sys_fontwidth;
 extern fn sys_fontwidth(c_uint) c_uint;
 
-pub fn fontHeight(fontsize: u32) u32 {
-	return sys_fontheight(fontsize);
-}
+pub const fontHeight = sys_fontheight;
 extern fn sys_fontheight(c_uint) c_uint;
 
 pub fn isAbsolutePath(dir: [*:0]const u8) bool {
@@ -1213,9 +1188,7 @@ pub const post = struct {
 };
 
 /// Get a number unique to the (clock, MIDI, GUI, etc.) event we're on
-pub fn eventNumber() u32 {
-	return sched_geteventno();
-}
+pub const eventNumber = sched_geteventno;
 extern fn sched_geteventno() c_uint;
 
 /// sys_idlehook is a hook the user can fill in to grab idle time.  Return
@@ -1253,14 +1226,10 @@ pub const mayer = struct {
 	}
 	extern fn mayer_fht([*]Sample, c_uint) void;
 
-	pub fn fft(n: usize, real: [*]Sample, imag: [*]Sample) void {
-		mayer_fft(@intCast(n), real, imag);
-	}
+	pub const fft = mayer_fft;
 	extern fn mayer_fft(c_uint, [*]Sample, [*]Sample) void;
 
-	pub fn ifft(n: usize, real: [*]Sample, imag: [*]Sample) void {
-		mayer_ifft(@intCast(n), real, imag);
-	}
+	pub const ifft = mayer_ifft;
 	extern fn mayer_ifft(c_uint, [*]Sample, [*]Sample) void;
 
 	pub fn realfft(real: []Sample) void {

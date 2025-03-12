@@ -9,10 +9,10 @@ const Object = pd.Object;
 const GList = cnv.GList;
 const GObj = pd.GObj;
 
-pub const min_size: u32 = 8;
-pub const max_size: u32 = 1000;
-pub const max_num_len: u32 = 32;
-pub const io_height: u32 = cnv.i_height;
+pub const min_size = 8;
+pub const max_size = 1000;
+pub const max_num_len = 32;
+pub const io_height = cnv.i_height;
 
 pub fn isFloat(av: []Atom) bool {
 	for (av) |*a| {
@@ -80,10 +80,8 @@ pub const FontStyleFlags = packed struct(c_uint) {
 		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 31,
 	}}),
 
-	pub fn init(self: *FontStyleFlags, n: u32) void {
-		iem_inttofstyle(self, @intCast(n));
-	}
-	extern fn iem_inttofstyle(self: *FontStyleFlags, n: c_int) void;
+	pub const fromInt = iem_inttofstyle;
+	extern fn iem_inttofstyle(*FontStyleFlags, c_uint) void;
 };
 
 pub const InitSymArgs = packed struct(c_uint) {
@@ -99,10 +97,8 @@ pub const InitSymArgs = packed struct(c_uint) {
 		.signedness = .unsigned, .bits = @bitSizeOf(c_uint) - 28,
 	}}),
 
-	pub fn init(self: *InitSymArgs, n: u32) void {
-		iem_inttosymargs(self, @intCast(n));
-	}
-	extern fn iem_inttosymargs(self: *InitSymArgs, n: c_int) void;
+	pub const fromInt = iem_inttosymargs;
+	extern fn iem_inttosymargs(*InitSymArgs, c_uint) void;
 };
 
 pub const Gui = extern struct {
@@ -115,7 +111,7 @@ pub const Gui = extern struct {
 		logarithmic = 1,
 	};
 
-	pub inline fn defaultSize() u32 {
+	pub inline fn defaultSize() c_uint {
 		return pd.zoomFontHeight(cnv.GList.current().font, 1, false) + 2 + 3;
 	}
 

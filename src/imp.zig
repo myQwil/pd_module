@@ -137,30 +137,19 @@ pub const Class = extern struct {
 	pub const setParentWidget = class_setparentwidget;
 	extern fn class_setparentwidget(*Class, *const cnv.parent.WidgetBehavior) void;
 
-	pub fn getName(self: *const Class) [:0]const u8 {
-		const str = class_getname(self);
-		return str[0..strlen(str) :0];
-	}
+	pub const getName = class_getname;
 	extern fn class_getname(*const Class) [*:0]const u8;
 
-	pub fn helpName(self: *const Class) [:0]const u8 {
-		const str = class_gethelpname(self);
-		return str[0..strlen(str) :0];
-	}
+	pub const getHelpName = class_gethelpname;
 	extern fn class_gethelpname(*const Class) [*:0]const u8;
 
-	pub fn helpDir(self: *const Class) [:0]const u8 {
-		const str = class_gethelpdir(self);
-		return str[0..strlen(str) :0];
-	}
+	pub const getHelpDir = class_gethelpdir;
 	extern fn class_gethelpdir(*const Class) [*:0]const u8;
 
 	pub const setDrawCommand = class_setdrawcommand;
 	extern fn class_setdrawcommand(*Class) void;
 
-	pub fn doMainSignalIn(self: *Class, onset: u32) void {
-		class_domainsignalin(self, onset);
-	}
+	pub const doMainSignalIn = class_domainsignalin;
 	extern fn class_domainsignalin(*Class, c_uint) void;
 
 	pub const setSaveFn = class_setsavefn;

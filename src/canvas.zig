@@ -1,10 +1,5 @@
 const pd = @import("pd.zig");
 
-/// non-zero on success/true
-const Bool = c_uint;
-/// zero on success, otherwise represents an error
-const Result = c_int;
-
 const Atom = pd.Atom;
 const Float = pd.Float;
 const Symbol = pd.Symbol;
@@ -269,7 +264,7 @@ pub const GList = extern struct {
 	pub fn isSelected(self: *GList, obj: *GObj) bool {
 		return (glist_isselected(self, obj) != 0);
 	}
-	extern fn glist_isselected(*GList, *GObj) Bool;
+	extern fn glist_isselected(*GList, *GObj) c_uint;
 
 	pub const select = glist_select;
 	extern fn glist_select(*GList, *GObj) void;
@@ -296,36 +291,28 @@ pub const GList = extern struct {
 	pub fn isVisible(self: *GList) bool {
 		return (glist_isvisible(self) != 0);
 	}
-	extern fn glist_isvisible(*GList) Bool;
+	extern fn glist_isvisible(*GList) c_uint;
 
 	pub fn isTopLevel(self: *GList) bool {
 		return (glist_istoplevel(self) != 0);
 	}
-	extern fn glist_istoplevel(*GList) Bool;
+	extern fn glist_istoplevel(*GList) c_uint;
 
 	/// Find the graph most recently added to this glist.
 	/// If none exists, return null.
 	pub const findGraph = glist_findgraph;
 	extern fn glist_findgraph(*GList) ?*GList;
 
-	pub fn getFont(self: *GList) u32 {
-		return glist_getfont(self);
-	}
+	pub const getFont = glist_getfont;
 	extern fn glist_getfont(*GList) c_uint;
 
-	pub fn fontWidth(self: *GList) u32 {
-		return glist_fontwidth(self);
-	}
+	pub const fontWidth = glist_fontwidth;
 	extern fn glist_fontwidth(*GList) c_uint;
 
-	pub fn fontHeight(self: *GList) u32 {
-		return glist_fontheight(self);
-	}
+	pub const fontHeight = glist_fontheight;
 	extern fn glist_fontheight(*GList) c_uint;
 
-	pub fn getZoom(self: *GList) u32 {
-		glist_getzoom(self);
-	}
+	pub const getZoom = glist_getzoom;
 	extern fn glist_getzoom(*GList) c_uint;
 
 	pub const sort = glist_sort;
@@ -391,18 +378,21 @@ pub const GList = extern struct {
 	pub fn isGraph(self: *GList) bool {
 		return (glist_isgraph(self) != 0);
 	}
-	extern fn glist_isgraph(*GList) Bool;
+	extern fn glist_isgraph(*GList) c_uint;
 
 	pub const redraw = glist_redraw;
 	extern fn glist_redraw(*GList) void;
 
 	/// Draw inlets and outlets for a text object or for a graph.
 	pub fn drawIoFor(
-		self: *GList, ob: *Object,
+		self: *GList,
+		ob: *Object,
 		first_time: bool,
 		tag: [*:0]const u8,
-		x1: i32, y1: i32,
-		x2: i32, y2: i32,
+		x1: c_int,
+		y1: c_int,
+		x2: c_int,
+		y2: c_int,
 	) void {
 		glist_drawiofor(self, ob, @intFromBool(first_time), tag, x1, y1, x2, y2);
 	}
@@ -447,9 +437,12 @@ pub const GList = extern struct {
 	/// global path.
 	pub fn open(
 		self: *const GList,
-		name: [*:0]const u8, ext: [*:0]const u8,
-		dirresult: [*:0]u8, nameresult: *[*]u8,
-		size: u32, bin: bool,
+		name: [*:0]const u8,
+		ext: [*:0]const u8,
+		dirresult: [*:0]u8,
+		nameresult: *[*:0]u8,
+		size: c_uint,
+		bin: bool,
 	) Error!void {
 		if (canvas_open(self, name, ext, dirresult, nameresult,
 			size, @intFromBool(bin)) < 0)
@@ -458,14 +451,12 @@ pub const GList = extern struct {
 		}
 	}
 	extern fn canvas_open(*const GList, [*:0]const u8, [*:0]const u8,
-		[*:0]u8, *[*]u8, c_uint, Bool) Result;
+		[*:0]u8, *[*:0]u8, c_uint, c_uint) c_int;
 
 	pub const sampleRate = canvas_getsr;
 	extern fn canvas_getsr(*GList) Float;
 
-	pub fn signalLength(self: *GList) u32 {
-		return canvas_getsignallength(self);
-	}
+	pub const signalLength = canvas_getsignallength;
 	extern fn canvas_getsignallength(*GList) c_uint;
 
 	pub fn setArgs(av: []const Atom) void {
