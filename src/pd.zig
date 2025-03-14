@@ -59,14 +59,13 @@ pub const Atom = extern struct {
 		}
 	};
 
-	pub const int = atom_getint;
-	extern fn atom_getint(*const Atom) isize;
+	pub inline fn getFloat(self: *const Atom, fallback: Float) Float {
+		return if (self.type == .float) self.w.float else fallback;
+	}
 
-	pub const float = atom_getfloat;
-	extern fn atom_getfloat(*const Atom) Float;
-
-	pub const symbol = atom_getsymbol;
-	extern fn atom_getsymbol(*const Atom) *Symbol;
+	pub inline fn getSymbol(self: *const Atom, fallback: *Symbol) *Symbol {
+		return if (self.type == .symbol) self.w.symbol else fallback;
+	}
 
 	pub const toSymbol = atom_gensym;
 	extern fn atom_gensym(*const Atom) *Symbol;
@@ -75,6 +74,18 @@ pub const Atom = extern struct {
 		atom_string(self, buf.ptr, @intCast(buf.len));
 	}
 	extern fn atom_string(*const Atom, [*]u8, c_uint) void;
+
+	pub inline fn float(f: Float) Atom {
+		return .{ .type = .float, .w = .{ .float = f } };
+	}
+
+	pub inline fn symbol(s: *Symbol) Atom {
+		return .{ .type = .symbol, .w = .{ .symbol = s } };
+	}
+
+	pub inline fn pointer(p: *GPointer) Atom {
+		return .{ .type = .pointer, .w = .{ .gpointer = p } };
+	}
 };
 
 pub fn addCreator(
@@ -86,20 +97,27 @@ pub fn addCreator(
 }
 extern fn class_addcreator(NewMethod, *Symbol, c_uint, ...) void;
 
-pub fn intArg(av: []const Atom, which: c_uint) isize {
-	return atom_getintarg(which, @intCast(av.len), av.ptr);
+pub inline fn floatArg(
+	index: usize,
+	av: []const Atom,
+	fallback: Float,
+) Float {
+	return if (av.len > index and av[index].type == .float)
+		av[index].w.float
+	else
+		fallback;
 }
-extern fn atom_getintarg(c_uint, c_uint, [*]const Atom) isize;
 
-pub fn floatArg(av: []const Atom, which: c_uint) Float {
-	return atom_getfloatarg(which, @intCast(av.len), av.ptr);
+pub inline fn symbolArg(
+	index: usize,
+	av: []const Atom,
+	fallback: *Symbol,
+) *Symbol {
+	return if (av.len > index and av[index].type == .symbol)
+		av[index].w.symbol
+	else
+		fallback;
 }
-extern fn atom_getfloatarg(c_uint, c_uint, [*]const Atom) Float;
-
-pub fn symbolArg(av: []const Atom, which: c_uint) *Symbol {
-	return atom_getsymbolarg(which, @intCast(av.len), av.ptr);
-}
-extern fn atom_getsymbolarg(c_uint, c_uint, [*]const Atom) *Symbol;
 
 
 // ---------------------------------- BinBuf -----------------------------------
@@ -681,24 +699,26 @@ pub const Object = extern struct {
 	pub const inletSignal = Inlet.signal;
 	pub const inletPointer = Inlet.pointer;
 
-	pub fn inletFloatArg(
+	pub inline fn inletFloatArg(
 		self: *Object,
 		fp: *Float,
+		index: usize,
 		av: []const Atom,
-		which: c_uint,
+		fallback: Float,
 	) Inlet.Error!*Inlet {
-		fp.* = floatArg(av, which);
-		return self.inletFloat(fp);
+		fp.* = floatArg(index, av, fallback);
+		return .float(self, fp);
 	}
 
-	pub fn inletSymbolArg(
+	pub inline fn inletSymbolArg(
 		self: *Object,
 		sp: **Symbol,
+		index: usize,
 		av: []const Atom,
-		which: c_uint,
+		fallback: *Symbol,
 	) Inlet.Error!*Inlet {
-		sp.* = symbolArg(av, which);
-		return self.inletSymbol(sp);
+		sp.* = symbolArg(index, av, fallback);
+		return .symbol(self, sp);
 	}
 };
 
