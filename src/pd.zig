@@ -14,6 +14,7 @@ pub const Method = ?*const fn () callconv(.C) void;
 pub const NewMethod = ?*const fn () callconv(.C) ?*anyopaque;
 
 pub const Class = imp.Class;
+pub const GList = cnv.GList;
 pub const Gui = iem.Gui;
 
 pub const Word = extern union {
@@ -1050,8 +1051,10 @@ pub fn isAbsolutePath(dir: [*:0]const u8) bool {
 }
 extern fn sys_isabsolutepath([*:0]const u8) c_uint;
 
-pub const currentDir = canvas_getcurrentdir;
-extern fn canvas_getcurrentdir() *Symbol;
+pub fn currentDir() ?*Symbol {
+	// avoid `extern fn canvas_getcurrentdir()`, it will cause pd to crash.
+	return if (GList.current()) |glist| glist.dir() else null;
+}
 
 /// DSP can be suspended before, and resumed after, operations which
 /// might affect the DSP chain.  For example, we suspend before loading and

@@ -135,8 +135,6 @@ pub const Editor = extern struct {
 
 // ----------------------------------- GList -----------------------------------
 // -----------------------------------------------------------------------------
-pub const CanvasEnvironment = opaque {};
-
 /// where to put ticks on x or y axes
 const Tick = extern struct {
 	/// one point to draw a big tick at
@@ -151,6 +149,8 @@ pub const GList = extern struct {
 	pub const Error = error {
 		GListOpen,
 	};
+
+	pub const Environment = opaque {};
 
 	pub const MotionFn = ?*const fn (*anyopaque, Float, Float, Float) callconv(.C) void;
 	pub const KeyFn = ?*const fn (*anyopaque, *Symbol, Float) callconv(.C) void;
@@ -194,7 +194,7 @@ pub const GList = extern struct {
 	/// number of X coordinate labels
 	nxlabels: c_uint,
 	/// array to hold X coordinate labels
-	xlabel: **Symbol,
+	xlabel: [*]*Symbol,
 	/// Y coordinate for X coordinate labels
 	xlabely: Float,
 	/// ticks marking Y values
@@ -202,7 +202,7 @@ pub const GList = extern struct {
 	/// number of Y coordinate labels
 	nylabels: c_uint,
 	/// array to hold Y coordinate labels
-	ylabel: **Symbol,
+	ylabel: [*]*Symbol,
 	/// X coordinate for Y coordinate labels
 	ylabelx: Float,
 	/// editor structure when visible
@@ -214,7 +214,7 @@ pub const GList = extern struct {
 	/// link in list of toplevels
 	next: ?*GList,
 	/// root canvases and abstractions only
-	env: *CanvasEnvironment,
+	env: *Environment,
 	flags: packed struct(c_uint) {
 		/// true if we own a window
 		havewindow: bool,
@@ -483,7 +483,10 @@ pub const GList = extern struct {
 		*GList, *Pd, *Symbol, c_uint, [*]Atom, c_uint, [*]Atom) void;
 
 	pub const current = canvas_getcurrent;
-	extern fn canvas_getcurrent() *GList;
+	extern fn canvas_getcurrent() ?*GList;
+
+	pub const environment = canvas_getenv;
+	extern fn canvas_getenv(*GList) *Environment;
 };
 
 
