@@ -31,15 +31,15 @@ pub const Class = extern struct {
 		ClassNew,
 	};
 
-	pub const fnBang = ?*const fn (*Pd) callconv(.C) void;
-	pub const fnPointer = ?*const fn (*Pd, *GPointer) callconv(.C) void;
-	pub const fnFloat = ?*const fn (*Pd, Float) callconv(.C) void;
-	pub const fnSymbol = ?*const fn (*Pd, *Symbol) callconv(.C) void;
-	pub const fnList = ?*const fn (*Pd, ?*Symbol, c_uint, [*]Atom) callconv(.C) void;
-	pub const fnAny = ?*const fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.C) void;
-	pub const fnFree = ?*const fn (*Class) callconv(.C) void;
-	pub const fnSave = ?*const fn (*GObj, *BinBuf) callconv(.C) void;
-	pub const fnProperties = ?*const fn (*GObj, *cnv.GList) callconv(.C) void;
+	pub const fnBang = ?*const fn (*Pd) callconv(.c) void;
+	pub const fnPointer = ?*const fn (*Pd, *GPointer) callconv(.c) void;
+	pub const fnFloat = ?*const fn (*Pd, Float) callconv(.c) void;
+	pub const fnSymbol = ?*const fn (*Pd, *Symbol) callconv(.c) void;
+	pub const fnList = ?*const fn (*Pd, ?*Symbol, c_uint, [*]Atom) callconv(.c) void;
+	pub const fnAny = ?*const fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.c) void;
+	pub const fnFree = ?*const fn (*Class) callconv(.c) void;
+	pub const fnSave = ?*const fn (*GObj, *BinBuf) callconv(.c) void;
+	pub const fnProperties = ?*const fn (*GObj, *cnv.GList) callconv(.c) void;
 
 	name: *Symbol,
 	helpname: *Symbol,

@@ -45,8 +45,8 @@ const DrawMode = enum(c_uint) {
 	io,
 };
 
-pub const FunPtr = ?*const fn (*anyopaque, *GList, DrawMode) callconv(.C) void;
-pub const DrawFunPtr = ?*const fn (*anyopaque, *GList) callconv(.C) void;
+pub const FunPtr = ?*const fn (*anyopaque, *GList, DrawMode) callconv(.c) void;
+pub const DrawFunPtr = ?*const fn (*anyopaque, *GList) callconv(.c) void;
 const Private = opaque {};
 
 pub const DrawFunctions = extern struct {

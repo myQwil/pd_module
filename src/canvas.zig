@@ -152,8 +152,8 @@ pub const GList = extern struct {
 
 	pub const Environment = opaque {};
 
-	pub const MotionFn = ?*const fn (*anyopaque, Float, Float, Float) callconv(.C) void;
-	pub const KeyFn = ?*const fn (*anyopaque, *Symbol, Float) callconv(.C) void;
+	pub const MotionFn = ?*const fn (*anyopaque, Float, Float, Float) callconv(.c) void;
+	pub const KeyFn = ?*const fn (*anyopaque, *Symbol, Float) callconv(.c) void;
 
 	/// header in case we're a glist
 	obj: Object,
@@ -521,14 +521,14 @@ pub const Template = extern struct {
 // ---------------------------------- Widgets ----------------------------------
 // -----------------------------------------------------------------------------
 pub const GetRectFn = ?*const fn (
-	*GObj, *GList, *c_int, *c_int, *c_int, *c_int) callconv(.C) void;
+	*GObj, *GList, *c_int, *c_int, *c_int, *c_int) callconv(.c) void;
 pub const ClickFn = ?*const fn (
-	*GObj, *GList, c_int, c_int, c_int, c_int, c_int, c_int) callconv(.C) c_int;
-pub const DisplaceFn = ?*const fn (*GObj, *GList, c_int, c_int) callconv(.C) void;
-pub const SelectFn = ?*const fn (*GObj, *GList, c_int) callconv(.C) void;
-pub const ActivateFn = ?*const fn (*GObj, *GList, c_int) callconv(.C) void;
-pub const DeleteFn = ?*const fn (*GObj, *GList) callconv(.C) void;
-pub const VisFn = ?*const fn (*GObj, *GList, c_int) callconv(.C) void;
+	*GObj, *GList, c_int, c_int, c_int, c_int, c_int, c_int) callconv(.c) c_int;
+pub const DisplaceFn = ?*const fn (*GObj, *GList, c_int, c_int) callconv(.c) void;
+pub const SelectFn = ?*const fn (*GObj, *GList, c_int) callconv(.c) void;
+pub const ActivateFn = ?*const fn (*GObj, *GList, c_int) callconv(.c) void;
+pub const DeleteFn = ?*const fn (*GObj, *GList) callconv(.c) void;
+pub const VisFn = ?*const fn (*GObj, *GList, c_int) callconv(.c) void;
 
 pub const WidgetBehavior = extern struct {
 	getrect: GetRectFn = null,
@@ -542,17 +542,17 @@ pub const WidgetBehavior = extern struct {
 
 pub const parent = struct {
 	pub const GetRectFn = ?*const fn (*GObj, *GList, *Word, *Template,
-		Float, Float, *c_int, *c_int, *c_int, *c_int) callconv(.C) void;
+		Float, Float, *c_int, *c_int, *c_int, *c_int) callconv(.c) void;
 	pub const DisplaceFn = ?*const fn (*GObj, *GList, *Word, *Template,
-		Float, Float, c_int, c_int) callconv(.C) void;
+		Float, Float, c_int, c_int) callconv(.c) void;
 	pub const SelectFn = ?*const fn (*GObj, *GList, *Word, *Template,
-		Float, Float, c_int) callconv(.C) void;
+		Float, Float, c_int) callconv(.c) void;
 	pub const ActivateFn = ?*const fn (*GObj, *GList, *Word, *Template,
-		Float, Float, c_int) callconv(.C) void;
+		Float, Float, c_int) callconv(.c) void;
 	pub const VisFn = ?*const fn (*GObj, *GList, *Word, *Template,
-		Float, Float, c_int) callconv(.C) void;
+		Float, Float, c_int) callconv(.c) void;
 	pub const ClickFn = ?*const fn (*GObj, *GList, *Word, *Template, *Scalar, *Array,
-		Float, Float, c_int, c_int, c_int, c_int, c_int, c_int) callconv(.C) c_int;
+		Float, Float, c_int, c_int, c_int, c_int, c_int, c_int) callconv(.c) c_int;
 
 	pub const WidgetBehavior = extern struct {
 		getrect: parent.GetRectFn = null,

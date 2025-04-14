@@ -10,8 +10,8 @@ pub extern const pd_compatibilitylevel: c_int;
 pub const Float = std.meta.Float(@import("options").float_size);
 pub const Sample = Float;
 
-pub const Method = ?*const fn () callconv(.C) void;
-pub const NewMethod = ?*const fn () callconv(.C) ?*anyopaque;
+pub const Method = ?*const fn () callconv(.c) void;
+pub const NewMethod = ?*const fn () callconv(.c) ?*anyopaque;
 
 pub const Class = imp.Class;
 pub const GList = cnv.GList;
@@ -338,7 +338,7 @@ extern fn clock_gettimesincewithunits(f64, f64, c_uint) f64;
 // ------------------------------------ Dsp ------------------------------------
 // -----------------------------------------------------------------------------
 pub const dsp = struct {
-	pub const PerfRoutine = ?*const fn ([*]usize) callconv(.C) *usize;
+	pub const PerfRoutine = ?*const fn ([*]usize) callconv(.c) *usize;
 
 	pub fn add(perf: PerfRoutine, args: anytype) void {
 		@call(.auto, dsp_add, .{ perf, @as(c_uint, @intCast(args.len)) } ++ args);
@@ -988,7 +988,7 @@ pub extern var s_: Symbol;
 
 // ---------------------------------- System -----------------------------------
 // -----------------------------------------------------------------------------
-pub const GuiCallbackFn = ?*const fn (*GObj, *cnv.GList) callconv(.C) void;
+pub const GuiCallbackFn = ?*const fn (*GObj, *cnv.GList) callconv(.c) void;
 
 pub const blockSize = sys_getblksize;
 extern fn sys_getblksize() c_uint;
@@ -1131,12 +1131,12 @@ pub extern var pd_objectmaker: Pd;
 pub const canvas_maker = &pd_canvasmaker;
 pub extern var pd_canvasmaker: Pd;
 
-pub const GotFn = ?*const fn (*anyopaque, ...) callconv(.C) void;
-pub const GotFn1 = ?*const fn (*anyopaque, *anyopaque) callconv(.C) void;
-pub const GotFn2 = ?*const fn (*anyopaque, *anyopaque, *anyopaque) callconv(.C) void;
-pub const GotFn3 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.C) void;
-pub const GotFn4 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.C) void;
-pub const GotFn5 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.C) void;
+pub const GotFn = ?*const fn (*anyopaque, ...) callconv(.c) void;
+pub const GotFn1 = ?*const fn (*anyopaque, *anyopaque) callconv(.c) void;
+pub const GotFn2 = ?*const fn (*anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
+pub const GotFn3 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
+pub const GotFn4 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
+pub const GotFn5 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
 
 pub const nullFn = nullfn;
 extern fn nullfn() void;
@@ -1149,7 +1149,7 @@ pub const post = struct {
 		@call(.auto, post_, .{ fmt } ++ args);
 	}
 	const post_ = @extern(
-		*const fn([*:0]const u8, ...) callconv(.C) void, .{ .name = "post" });
+		*const fn([*:0]const u8, ...) callconv(.c) void, .{ .name = "post" });
 
 	pub fn start(fmt: [*:0]const u8, args: anytype) void {
 		@call(.auto, startpost, .{ fmt } ++ args);
@@ -1174,7 +1174,7 @@ pub const post = struct {
 		@call(.auto, bug_, .{ fmt } ++ args);
 	}
 	const bug_ = @extern(
-		*const fn([*:0]const u8, ...) callconv(.C) void, .{ .name = "bug" });
+		*const fn([*:0]const u8, ...) callconv(.c) void, .{ .name = "bug" });
 
 	pub fn err(self: ?*const anyopaque, fmt: [*:0]const u8, args: anytype) void {
 		@call(.auto, pd_error, .{ self, fmt } ++ args);
@@ -1207,7 +1207,7 @@ extern fn sched_geteventno() c_uint;
 /// sys_idlehook is a hook the user can fill in to grab idle time.  Return
 /// nonzero if you actually used the time; otherwise we're really really idle and
 /// will now sleep.
-pub extern var sys_idlehook: ?*const fn () callconv(.C) c_int;
+pub extern var sys_idlehook: ?*const fn () callconv(.c) c_int;
 
 pub const plusPerform = plus_perform;
 extern fn plus_perform(args: [*]usize) *usize;
