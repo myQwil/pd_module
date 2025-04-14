@@ -207,12 +207,4 @@ pub const Class = extern struct {
 	extern fn class_new(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Class;
 	extern fn class_new64(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Class;
 	const classNew = if (@bitSizeOf(Float) == 64) class_new64 else class_new;
-
-	pub const garray = &garray_class;
-	pub const scalar = &scalar_class;
-	pub const global = &glob_pdobject;
 };
-
-pub extern const garray_class: *Class;
-pub extern const scalar_class: *Class;
-pub extern const glob_pdobject: *Class;

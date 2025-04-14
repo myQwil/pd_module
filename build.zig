@@ -8,10 +8,11 @@ pub fn build(b: *std.Build) !void {
 	const target = b.standardTargetOptions(.{});
 	const optimize = b.standardOptimizeOption(.{});
 
-	const defaults = Options{};
-	const opt = Options{
-		.float_size = b.option(u8, "float_size", "Size of a floating-point number")
-			orelse defaults.float_size,
+	const default: Options = .{};
+	const opt: Options = .{
+		.float_size = b.option(u8, "float_size",
+			"Size of a floating-point number"
+		) orelse default.float_size,
 	};
 
 	const opts = b.addOptions();

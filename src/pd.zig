@@ -371,6 +371,9 @@ pub const dsp = struct {
 
 // ---------------------------------- GArray -----------------------------------
 // -----------------------------------------------------------------------------
+pub extern const garray_class: *Class;
+pub extern const scalar_class: *Class;
+
 pub const GArray = opaque {
 	pub const Error = error {
 		GArrayGetArray,
@@ -769,6 +772,9 @@ pub const Outlet = opaque {
 
 // ------------------------------------ Pd -------------------------------------
 // -----------------------------------------------------------------------------
+/// object to send "pd" messages
+pub extern const glob_pdobject: *Class;
+
 pub const Pd = extern struct {
 	_: *const imp.Class,
 
