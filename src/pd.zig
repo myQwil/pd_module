@@ -2,6 +2,7 @@ const std = @import("std");
 pub const imp = @import("imp.zig");
 pub const cnv = @import("canvas.zig");
 pub const iem = @import("all_guis.zig");
+pub const stf = @import("stuff.zig");
 
 const strlen = std.mem.len;
 
@@ -859,6 +860,99 @@ pub const Pd = extern struct {
 };
 
 
+// ----------------------------------- Post ------------------------------------
+// -----------------------------------------------------------------------------
+pub const post = struct {
+	const buflen = max_string;
+	var buf: [buflen:0]u8 = undefined;
+
+	inline fn write(dest: [*:0]const u8, fmt: [*:0]const u8, args: anytype) void {
+		if (this().stuff.printhook) |print| {
+			print(&buf);
+		} else if (stf.sys_printtostderr != 0 or !stf.haveTkProc()) {
+			std.debug.print("{s}", .{ &buf });
+		} else {
+			vMess(dest, fmt, args);
+		}
+	}
+
+	inline fn dopost(comptime fmt: []const u8, args: anytype) void {
+		var fbs = std.io.fixedBufferStream(&buf);
+		fbs.writer().print(fmt, args) catch {
+			@memcpy(buf[buflen - 3..], "..\n");
+			fbs.pos = buflen;
+		};
+		buf[fbs.pos] = 0;
+		write("::pdwindow::post", "s", .{ &buf });
+	}
+
+	pub fn do(comptime fmt: []const u8, args: anytype) void {
+		dopost(fmt ++ "\n", args);
+	}
+
+	pub fn start(comptime fmt: []const u8, args: anytype) void {
+		dopost(fmt, args);
+	}
+
+	pub fn end() void {
+		dopost("\n", .{});
+	}
+
+	pub const string = poststring;
+	extern fn poststring([*:0]const u8) void;
+
+	pub const float = postfloat;
+	extern fn postfloat(f: Float) void;
+
+	pub fn atom(av: []const Atom) void {
+		postatom(av.len, av.ptr);
+	}
+	extern fn postatom(c_uint, [*]const Atom) void;
+
+	pub const LogLevel = enum(c_uint) {
+		critical,
+		err,
+		normal,
+		debug,
+		verbose,
+		_,
+	};
+
+	pub fn log(
+		object: ?*const anyopaque,
+		level: LogLevel,
+		comptime fmt: []const u8,
+		args: anytype,
+	) void {
+		const i: c_uint = @intFromEnum(level);
+		var fbs = std.io.fixedBufferStream(&buf);
+		const stream = fbs.writer();
+		switch (level) {
+			.critical, .normal, .debug => {},
+			.err => stream.writeAll("error: ") catch unreachable,
+			else => {
+				if (stf.sys_verbose == 0) {
+					return;
+				} else {
+					stream.print("verbose({}): ", .{ i }) catch unreachable;
+				}
+			},
+		}
+		const prefix = fbs.pos;
+		stream.print(fmt ++ "\n", args) catch {
+			@memcpy(buf[buflen - 3..], "..\n");
+			fbs.pos = buflen;
+		};
+		buf[fbs.pos] = 0;
+		write("::pdwindow::logpost", "ois", .{ object, i, buf[prefix..].ptr });
+	}
+
+	pub fn err(obj: ?*const anyopaque, comptime fmt: []const u8, args: anytype) void {
+		log(obj, .err, fmt, args);
+	}
+};
+
+
 // --------------------------------- Resample ----------------------------------
 // -----------------------------------------------------------------------------
 pub const Resample = extern struct {
@@ -1144,62 +1238,6 @@ extern fn nullfn() void;
 pub const font: [*:0]u8 = @extern([*:0]u8, .{ .name = "sys_font" });
 pub const font_weight: [*:0]u8 = @extern([*:0]u8, .{ .name = "sys_fontweight" });
 
-pub const post = struct {
-	pub fn do(fmt: [*:0]const u8, args: anytype) void {
-		@call(.auto, post_, .{ fmt } ++ args);
-	}
-	const post_ = @extern(
-		*const fn([*:0]const u8, ...) callconv(.c) void, .{ .name = "post" });
-
-	pub fn start(fmt: [*:0]const u8, args: anytype) void {
-		@call(.auto, startpost, .{ fmt } ++ args);
-	}
-	extern fn startpost([*:0]const u8, ...) void;
-
-	pub const string = poststring;
-	extern fn poststring([*:0]const u8) void;
-
-	pub const float = postfloat;
-	extern fn postfloat(f: Float) void;
-
-	pub fn atom(av: []const Atom) void {
-		postatom(av.len, av.ptr);
-	}
-	extern fn postatom(c_uint, [*]const Atom) void;
-
-	pub const end = endpost;
-	extern fn endpost() void;
-
-	pub fn bug(fmt: [*:0]const u8, args: anytype) void {
-		@call(.auto, bug_, .{ fmt } ++ args);
-	}
-	const bug_ = @extern(
-		*const fn([*:0]const u8, ...) callconv(.c) void, .{ .name = "bug" });
-
-	pub fn err(self: ?*const anyopaque, fmt: [*:0]const u8, args: anytype) void {
-		@call(.auto, pd_error, .{ self, fmt } ++ args);
-	}
-	extern fn pd_error(?*const anyopaque, fmt: [*:0]const u8, ...) void;
-
-	pub const LogLevel = enum(c_uint) {
-		critical,
-		err,
-		normal,
-		debug,
-		verbose,
-	};
-
-	pub fn log(
-		obj: ?*const anyopaque,
-		lvl: LogLevel,
-		fmt: [*:0]const u8,
-		args: anytype
-	) void {
-		@call(.auto, logpost, .{ obj, lvl, fmt } ++ args);
-	}
-	extern fn logpost(?*const anyopaque, LogLevel, [*:0]const u8, ...) void;
-};
-
 /// Get a number unique to the (clock, MIDI, GUI, etc.) event we're on
 pub const eventNumber = sched_geteventno;
 extern fn sched_geteventno() c_uint;
@@ -1301,10 +1339,10 @@ extern fn qsqrt(Float) Float;
 pub const qRsqrt = qrsqrt;
 extern fn qrsqrt(Float) Float;
 
-pub fn vMess(destination: ?[*:0]const u8, fmt: [*:0]const u8, args: anytype) void {
+pub fn vMess(destination: ?[*:0]const u8, fmt: ?[*:0]const u8, args: anytype) void {
 	@call(.auto, pdgui_vmess, .{ destination, fmt } ++ args);
 }
-extern fn pdgui_vmess(?[*:0]const u8, [*:0]const u8, ...) void;
+extern fn pdgui_vmess(?[*:0]const u8, ?[*:0]const u8, ...) void;
 
 pub const deleteStubForKey = pdgui_stub_deleteforkey;
 extern fn pdgui_stub_deleteforkey(key: *anyopaque) void;
@@ -1349,31 +1387,44 @@ test bigOrSmall {
 	try std.testing.expect(!bigOrSmall(almost_small));
 }
 
-pub const Template = opaque {};
 pub const Instance = extern struct {
 	pub const Midi = opaque {};
 	pub const Inter = opaque {};
 	pub const Ugen = opaque {};
-	pub const Canvas = opaque {};
-	pub const Stuff = opaque {};
 
+	/// global time in Pd ticks
 	systime: f64,
-	clock_setlist: *Clock,
-	canvaslist: *cnv.GList,
-	templatelist: *Template,
+	/// linked list of set clocks
+	clock_setlist: ?*Clock,
+	/// linked list of all root canvases
+	canvaslist: ?*cnv.GList,
+	/// linked list of all templates
+	templatelist: ?*cnv.Template,
+	/// ordinal number of this instance
 	instanceno: c_uint,
-	symhash: **Symbol,
-	midi: ?*Midi,
-	inter: ?*Inter,
-	ugen: ?*Ugen,
-	gui: ?*Canvas,
-	stuff: ?*Stuff,
+	/// symbol table hash table
+	symhash: [*]*Symbol,
+	/// private stuff for x_midi.c
+	midi: *Midi,
+	/// private stuff for s_inter.c
+	inter: *Inter,
+	/// private stuff for d_ugen.c
+	ugen: *Ugen,
+	/// semi-private stuff in g_canvas.h
+	gui: *GList.Instance,
+	/// semi-private stuff in s_stuff.h
+	stuff: *stf.Instance,
+	/// most recently created object
 	newest: *Pd,
-	islocked: c_uint,
 
-	pub const main = &pd_maininstance;
+	// islocked: c_uint, // should only exist if threads are enabled
 };
 pub extern const pd_maininstance: Instance;
+
+pub fn this() *const Instance {
+	// TODO: fix this to be multi-instance compatible
+	return &pd_maininstance;
+}
 
 pub const max_string = 1000;
 pub const max_arg = 5;

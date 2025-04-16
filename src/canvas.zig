@@ -130,6 +130,8 @@ pub const Editor = extern struct {
 		/// drag to resize
 		resize,
 	};
+
+	pub const Instance = opaque {};
 };
 
 
@@ -248,6 +250,31 @@ pub const GList = extern struct {
 	zoom: c_uint,
 	/// private data
 	privatedata: *anyopaque,
+
+	pub const Instance = extern struct {
+		/// more, semi-private stuff
+		editor: *Editor.Instance,
+		/// more, semi-private stuff
+		template: *Template.Instance,
+		/// name of file being read
+		newfilename: *Symbol,
+		/// directory of `newfilename`
+		newdirectory: *Symbol,
+		/// creation arg count for new canvas
+		newargc: c_uint,
+		/// creation args for new canvas
+		newargv: [*]Atom,
+		/// abstraction we're reloading
+		reloading_abstraction: *GList,
+		/// whether DSP is running
+		dspstate: c_uint,
+		/// counter for $0
+		dollarzero: c_uint,
+		/// state for dragging
+		graph_lastxpix: Float,
+		/// state for dragging
+		graph_lastypix: Float,
+	};
 
 	pub const init = glist_init;
 	extern fn glist_init(*GList) void;
@@ -501,7 +528,7 @@ pub const LoadBang = enum(u2) {
 
 // --------------------------------- Template ----------------------------------
 // -----------------------------------------------------------------------------
-pub const GTemplate = opaque {};
+pub const PdStruct = opaque {};
 pub const DataSlot = extern struct {
 	type: c_int,
 	name: *Symbol,
@@ -510,11 +537,13 @@ pub const DataSlot = extern struct {
 
 pub const Template = extern struct {
 	pdobj: Pd,
-	list: *GTemplate,
+	list: *PdStruct,
 	sym: *Symbol,
-	n: c_int,
+	n: c_uint,
 	vec: *DataSlot,
 	next: ?*Template,
+
+	pub const Instance = opaque {};
 };
 
 
