@@ -952,6 +952,21 @@ pub const post = struct {
 	}
 };
 
+var fmt_buf: [128]u8 = undefined;
+const gmin = @exp(@log(10.0) * -4);
+const gmax = @exp(@log(10.0) * 6);
+
+pub fn fmtG(f: Float) []const u8 {
+	var fbs = std.io.fixedBufferStream(&fmt_buf);
+	const stream = fbs.writer();
+	if (f < gmin or gmax <= f) {
+		stream.print("{e}", .{ f }) catch return "?";
+	} else {
+		stream.print("{d}", .{ f }) catch return "?";
+	}
+	return fbs.getWritten();
+}
+
 
 // --------------------------------- Resample ----------------------------------
 // -----------------------------------------------------------------------------
