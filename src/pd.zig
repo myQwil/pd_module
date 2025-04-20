@@ -61,12 +61,12 @@ pub const Atom = extern struct {
 		}
 	};
 
-	pub inline fn getFloat(self: *const Atom, fallback: Float) Float {
-		return if (self.type == .float) self.w.float else fallback;
+	pub inline fn getFloat(self: *const Atom) ?Float {
+		return if (self.type == .float) self.w.float else null;
 	}
 
-	pub inline fn getSymbol(self: *const Atom, fallback: *Symbol) *Symbol {
-		return if (self.type == .symbol) self.w.symbol else fallback;
+	pub inline fn getSymbol(self: *const Atom) ?*Symbol {
+		return if (self.type == .symbol) self.w.symbol else null;
 	}
 
 	pub const toSymbol = atom_gensym;
@@ -99,26 +99,12 @@ pub fn addCreator(
 }
 extern fn class_addcreator(NewMethod, *Symbol, c_uint, ...) void;
 
-pub inline fn floatArg(
-	index: usize,
-	av: []const Atom,
-	fallback: Float,
-) Float {
-	return if (av.len > index and av[index].type == .float)
-		av[index].w.float
-	else
-		fallback;
+pub inline fn floatArg(idx: usize, av: []const Atom) ?Float {
+	return if (av.len > idx and av[idx].type == .float) av[idx].w.float else null;
 }
 
-pub inline fn symbolArg(
-	index: usize,
-	av: []const Atom,
-	fallback: *Symbol,
-) *Symbol {
-	return if (av.len > index and av[index].type == .symbol)
-		av[index].w.symbol
-	else
-		fallback;
+pub inline fn symbolArg(idx: usize, av: []const Atom) ?*Symbol {
+	return if (av.len > idx and av[idx].type == .symbol) av[idx].w.symbol else null;
 }
 
 
@@ -711,7 +697,7 @@ pub const Object = extern struct {
 		av: []const Atom,
 		fallback: Float,
 	) Inlet.Error!*Inlet {
-		fp.* = floatArg(index, av, fallback);
+		fp.* = floatArg(index, av) orelse fallback;
 		return .float(self, fp);
 	}
 
@@ -722,7 +708,7 @@ pub const Object = extern struct {
 		av: []const Atom,
 		fallback: *Symbol,
 	) Inlet.Error!*Inlet {
-		sp.* = symbolArg(index, av, fallback);
+		sp.* = symbolArg(index, av) orelse fallback;
 		return .symbol(self, sp);
 	}
 };
