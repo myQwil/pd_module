@@ -1,3 +1,4 @@
+const std = @import("std");
 const m = @import("pd.zig");
 const cnv = @import("canvas.zig");
 
@@ -15,6 +16,36 @@ const GotFn = m.GotFn;
 const Atom = m.Atom;
 const Float = m.Float;
 const Symbol = m.Symbol;
+
+pub fn printStruct(T: type, sym: *Symbol) void {
+	const info = @typeInfo(T).@"struct";
+	const Field = struct{ name: []const u8, offset: usize, type: type };
+	const fields: [info.fields.len]Field = comptime blk: {
+		var fields: [info.fields.len]Field = undefined;
+		for (info.fields, 0..) |field, i| {
+			fields[i] = .{
+				.name = field.name,
+				.offset = @offsetOf(T, field.name),
+				.type = field.type,
+			};
+		}
+		for (0..fields.len) |i| {
+			for (i + 1..fields.len) |j| {
+				if (fields[j].offset < fields[i].offset) {
+					const temp = fields[i];
+					fields[i] = fields[j];
+					fields[j] = temp;
+				}
+			}
+		}
+		break :blk fields;
+	};
+	m.post.do("[{s}]: {s}", .{ sym.name, @typeName(T) });
+	inline for (fields) |field| {
+		m.post.do("    {s}: {s} -> {}",
+			.{ field.name, @typeName(field.type), field.offset });
+	}
+}
 
 
 // ----------------------------------- Class -----------------------------------
@@ -193,15 +224,16 @@ pub const Class = extern struct {
 	extern fn class_addmethod(*Class, Method, *Symbol, c_uint, ...) void;
 
 	pub fn new(
+		T: type,
 		sym: *Symbol,
 		newm: NewMethod,
 		freem: Method,
-		size: usize,
 		opt: Class.Options,
 		comptime args: []const Atom.Type,
 	) Error!*Class {
+		// printStruct(T, sym); // uncomment this to view struct field order
 		return @call(.auto, classNew,
-			.{ sym, newm, freem, size, opt.toInt() } ++ Atom.Type.tuple(args))
+			.{ sym, newm, freem, @sizeOf(T), opt.toInt() } ++ Atom.Type.tuple(args))
 			orelse Error.ClassNew;
 	}
 	extern fn class_new(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Class;
