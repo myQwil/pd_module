@@ -864,7 +864,7 @@ pub const post = struct {
 
 	inline fn dopost(comptime fmt: []const u8, args: anytype) void {
 		var fbs = std.io.fixedBufferStream(&buf);
-		fbs.writer().print(fmt, args) catch {
+		fbs.writer().any().print(fmt, args) catch {
 			@memcpy(buf[buflen - 3..], "..\n");
 			fbs.pos = buflen;
 		};
@@ -912,7 +912,7 @@ pub const post = struct {
 	) void {
 		const i: c_uint = @intFromEnum(level);
 		var fbs = std.io.fixedBufferStream(&buf);
-		const stream = fbs.writer();
+		const stream = fbs.writer().any();
 		switch (level) {
 			.critical, .normal, .debug => {},
 			.err => stream.writeAll("error: ") catch unreachable,
@@ -938,18 +938,23 @@ pub const post = struct {
 	}
 };
 
-var fmt_buf: [128]u8 = undefined;
+pub var fmt_buf: [max_string:0]u8 = undefined;
 const gmin = @exp(@log(10.0) * -4);
 const gmax = @exp(@log(10.0) * 6);
 
+pub fn writeG(stream: std.io.AnyWriter, f: Float) !void {
+	const g = @abs(f);
+	if (g != 0 and (g < gmin or gmax <= g)) {
+		try stream.print("{e}", .{ f });
+	} else {
+		try stream.print("{d}", .{ f });
+	}
+}
+
+/// Good for when you only need to format 1 number. Otherwise, use `writeG()`
 pub fn fmtG(f: Float) []const u8 {
 	var fbs = std.io.fixedBufferStream(&fmt_buf);
-	const stream = fbs.writer();
-	if (f < gmin or gmax <= f) {
-		stream.print("{e}", .{ f }) catch return "?";
-	} else {
-		stream.print("{d}", .{ f }) catch return "?";
-	}
+	writeG(fbs.writer().any(), f) catch return "?";
 	return fbs.getWritten();
 }
 
