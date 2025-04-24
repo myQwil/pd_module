@@ -225,18 +225,19 @@ pub const Class = extern struct {
 
 	pub fn new(
 		T: type,
-		sym: *Symbol,
-		new_method: ?*const anyopaque,
-		free_method: ?*const fn(*T) callconv(.c) void,
-		opt: Class.Options,
+		name: [:0]const u8,
 		comptime args: []const Atom.Type,
+		new_method: ?*const m.NewFn(T, args),
+		free_method: ?*const fn(*T) callconv(.c) void,
+		options: Class.Options,
 	) Error!*Class {
 		// printStruct(T, sym); // uncomment this to view struct field order
+		const sym: *Symbol = .gen(name.ptr);
 		const newm: NewMethod = @ptrCast(new_method);
 		const freem: Method = @ptrCast(free_method);
 		return @call(.auto, classNew,
-			.{ sym, newm, freem, @sizeOf(T), opt.toInt() } ++ Atom.Type.tuple(args))
-			orelse Error.ClassNew;
+			.{ sym, newm, freem, @sizeOf(T), options.toInt() } ++ Atom.Type.tuple(args)
+		) orelse Error.ClassNew;
 	}
 	extern fn class_new(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Class;
 	extern fn class_new64(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Class;

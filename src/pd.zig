@@ -50,8 +50,9 @@ pub const Atom = extern struct {
 		cant,
 
 		const Tuple = std.meta.Tuple;
-		pub fn tuple(comptime args: []const Type)
-		Tuple(&[_]type {c_uint} ** (args.len + 1)) {
+		pub fn tuple(
+			comptime args: []const Type,
+		) Tuple(&[_]type {c_uint} ** (args.len + 1)) {
 			var arr: Tuple(&[_]type {c_uint} ** (args.len + 1)) = undefined;
 			inline for (0..args.len) |i| {
 				arr[i] = @intFromEnum(args[i]);
@@ -90,11 +91,51 @@ pub const Atom = extern struct {
 	}
 };
 
+fn typesFromAtoms(comptime args: []const Atom.Type) [args.len]type {
+	var types: [args.len]type = undefined;
+	for (args, 0..) |a, i| {
+		types[i] = switch (a) {
+			.symbol, .defsymbol => *Symbol,
+			else => Float,
+		};
+	}
+	return types;
+}
+
+fn paramsFromTypes(comptime types: []const type) [types.len]std.builtin.Type.Fn.Param {
+	var params: [types.len]std.builtin.Type.Fn.Param = undefined;
+	for (types, 0..) |t, i| {
+		params[i] = .{
+			.is_generic = false,
+			.is_noalias = false,
+			.type = t,
+		};
+	}
+	return params;
+}
+
+pub fn NewFn(T: type, comptime args: []const Atom.Type) type {
+	return @Type(.{ .@"fn" = std.builtin.Type.Fn{
+		.calling_convention = .c,
+		.is_generic = false,
+		.is_var_args = false,
+		.return_type = ?*T,
+		.params = if (args.len == 0) &.{} else &paramsFromTypes(
+			if (args[0] == .gimme)
+				&.{ *Symbol, c_uint, [*]Atom }
+			else
+				&typesFromAtoms(args)
+		),
+	}});
+}
+
 pub fn addCreator(
-	new_method: ?*const anyopaque,
-	sym: *Symbol,
+	T: type,
+	name: [:0]const u8,
 	comptime args: []const Atom.Type,
+	new_method: ?*const NewFn(T, args),
 ) void {
+	const sym: *Symbol = .gen(name);
 	const newm: NewMethod = @ptrCast(new_method);
 	@call(.auto, class_addcreator, .{ newm, sym } ++ Atom.Type.tuple(args));
 }
