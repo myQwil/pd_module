@@ -226,12 +226,14 @@ pub const Class = extern struct {
 	pub fn new(
 		T: type,
 		sym: *Symbol,
-		newm: NewMethod,
-		freem: Method,
+		new_method: ?*const anyopaque,
+		free_method: ?*const fn(*T) callconv(.c) void,
 		opt: Class.Options,
 		comptime args: []const Atom.Type,
 	) Error!*Class {
 		// printStruct(T, sym); // uncomment this to view struct field order
+		const newm: NewMethod = @ptrCast(new_method);
+		const freem: Method = @ptrCast(free_method);
 		return @call(.auto, classNew,
 			.{ sym, newm, freem, @sizeOf(T), opt.toInt() } ++ Atom.Type.tuple(args))
 			orelse Error.ClassNew;

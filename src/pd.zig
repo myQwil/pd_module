@@ -91,11 +91,12 @@ pub const Atom = extern struct {
 };
 
 pub fn addCreator(
-	newmethod: NewMethod,
+	new_method: ?*const anyopaque,
 	sym: *Symbol,
 	comptime args: []const Atom.Type,
 ) void {
-	@call(.auto, class_addcreator, .{ newmethod, sym } ++ Atom.Type.tuple(args));
+	const newm: NewMethod = @ptrCast(new_method);
+	@call(.auto, class_addcreator, .{ newm, sym } ++ Atom.Type.tuple(args));
 }
 extern fn class_addcreator(NewMethod, *Symbol, c_uint, ...) void;
 
