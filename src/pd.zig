@@ -891,8 +891,7 @@ pub const Pd = extern struct {
 // ----------------------------------- Post ------------------------------------
 // -----------------------------------------------------------------------------
 pub const post = struct {
-	const buflen = max_string;
-	var buf: [buflen:0]u8 = undefined;
+	var buf: [max_string:0]u8 = undefined;
 
 	inline fn write(dest: [*:0]const u8, fmt: [*:0]const u8, args: anytype) void {
 		if (this().stuff.printhook) |print| {
@@ -907,8 +906,8 @@ pub const post = struct {
 	inline fn dopost(comptime fmt: []const u8, args: anytype) void {
 		var fbs = std.io.fixedBufferStream(&buf);
 		fbs.writer().any().print(fmt, args) catch {
-			@memcpy(buf[buflen - 3..], "..\n");
-			fbs.pos = buflen;
+			@memcpy(buf[buf.len - 3..], "..\n");
+			fbs.pos = buf.len;
 		};
 		buf[fbs.pos] = 0;
 		write("::pdwindow::post", "s", .{ &buf });
@@ -968,8 +967,8 @@ pub const post = struct {
 		}
 		const prefix = fbs.pos;
 		stream.print(fmt ++ "\n", args) catch {
-			@memcpy(buf[buflen - 3..], "..\n");
-			fbs.pos = buflen;
+			@memcpy(buf[buf.len - 3..], "..\n");
+			fbs.pos = buf.len;
 		};
 		buf[fbs.pos] = 0;
 		write("::pdwindow::logpost", "ois", .{ object, i, buf[prefix..].ptr });
