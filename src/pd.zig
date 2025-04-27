@@ -367,7 +367,7 @@ extern fn clock_gettimesincewithunits(f64, f64, c_uint) f64;
 // ------------------------------------ Dsp ------------------------------------
 // -----------------------------------------------------------------------------
 pub const dsp = struct {
-	pub const PerfRoutine = ?*const fn ([*]usize) callconv(.c) *usize;
+	pub const PerfRoutine = ?*const fn ([*]usize) callconv(.c) [*]usize;
 
 	pub fn add(perf: PerfRoutine, args: anytype) void {
 		@call(.auto, dsp_add, .{ perf, @as(c_uint, @intCast(args.len)) } ++ args);
