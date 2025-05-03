@@ -17,7 +17,7 @@ const Atom = m.Atom;
 const Float = m.Float;
 const Symbol = m.Symbol;
 
-pub fn printStruct(T: type, sym: *Symbol) void {
+pub fn printStruct(T: type, name: [:0]const u8) void {
 	const info = @typeInfo(T).@"struct";
 	const Field = struct{ name: []const u8, offset: usize, type: type };
 	const fields: [info.fields.len]Field = comptime blk: {
@@ -40,7 +40,7 @@ pub fn printStruct(T: type, sym: *Symbol) void {
 		}
 		break :blk fields;
 	};
-	m.post.do("[{s}]: {s}", .{ sym.name, @typeName(T) });
+	m.post.do("[{s}]: {s}", .{ name, @typeName(T) });
 	inline for (fields) |field| {
 		m.post.do("    {s}: {s} -> {}",
 			.{ field.name, @typeName(field.type), field.offset });
@@ -231,7 +231,7 @@ pub const Class = extern struct {
 		free_method: ?*const fn(*T) callconv(.c) void,
 		options: Class.Options,
 	) Error!*Class {
-		// printStruct(T, sym); // uncomment this to view struct field order
+		// printStruct(T, name); // uncomment this to view struct field order
 		const sym: *Symbol = .gen(name.ptr);
 		const newm: NewMethod = @ptrCast(new_method);
 		const freem: Method = @ptrCast(free_method);
