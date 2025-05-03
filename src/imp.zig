@@ -52,7 +52,7 @@ pub fn printStruct(T: type, name: [:0]const u8) void {
 // -----------------------------------------------------------------------------
 pub const MethodEntry = extern struct {
 	name: *Symbol,
-	fun: GotFn,
+	fun: *const GotFn,
 	arg: [m.max_arg:0]u8,
 };
 
@@ -62,15 +62,15 @@ pub const Class = extern struct {
 		ClassNew,
 	};
 
-	pub const fnBang = ?*const fn (*Pd) callconv(.c) void;
-	pub const fnPointer = ?*const fn (*Pd, *GPointer) callconv(.c) void;
-	pub const fnFloat = ?*const fn (*Pd, Float) callconv(.c) void;
-	pub const fnSymbol = ?*const fn (*Pd, *Symbol) callconv(.c) void;
-	pub const fnList = ?*const fn (*Pd, ?*Symbol, c_uint, [*]Atom) callconv(.c) void;
-	pub const fnAny = ?*const fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.c) void;
-	pub const fnFree = ?*const fn (*Class) callconv(.c) void;
-	pub const fnSave = ?*const fn (*GObj, *BinBuf) callconv(.c) void;
-	pub const fnProperties = ?*const fn (*GObj, *cnv.GList) callconv(.c) void;
+	pub const BangFn = fn (*Pd) callconv(.c) void;
+	pub const PointerFn = fn (*Pd, *GPointer) callconv(.c) void;
+	pub const FloatFn = fn (*Pd, Float) callconv(.c) void;
+	pub const SymbolFn = fn (*Pd, *Symbol) callconv(.c) void;
+	pub const ListFn = fn (*Pd, ?*Symbol, c_uint, [*]Atom) callconv(.c) void;
+	pub const AnyFn = fn (*Pd, *Symbol, c_uint, [*]Atom) callconv(.c) void;
+	pub const FreeFn = fn (*Class) callconv(.c) void;
+	pub const SaveFn = fn (*GObj, *BinBuf) callconv(.c) void;
+	pub const PropertiesFn = fn (*GObj, *cnv.GList) callconv(.c) void;
 
 	name: *Symbol,
 	helpname: *Symbol,
@@ -78,17 +78,17 @@ pub const Class = extern struct {
 	size: usize,
 	methods: [*]MethodEntry,
 	nmethod: c_uint,
-	method_free: Method,
-	method_bang: fnBang,
-	method_pointer: fnPointer,
-	method_float: fnFloat,
-	method_symbol: fnSymbol,
-	method_list: fnList,
-	method_any: fnAny,
+	method_free: ?*const Method,
+	method_bang: ?*const BangFn,
+	method_pointer: ?*const PointerFn,
+	method_float: ?*const FloatFn,
+	method_symbol: ?*const SymbolFn,
+	method_list: ?*const ListFn,
+	method_any: ?*const AnyFn,
 	wb: ?*const cnv.WidgetBehavior,
 	pwb: ?*const cnv.parent.WidgetBehavior,
-	fn_save: fnSave,
-	fn_properties: fnProperties,
+	fn_save: ?*const SaveFn,
+	fn_properties: ?*const PropertiesFn,
 	next: ?*Class,
 	float_signal_in: c_uint,
 	flags: packed struct(u8) {
@@ -108,7 +108,7 @@ pub const Class = extern struct {
 		no_promote_left: bool,
 		_unused: u1,
 	},
-	fn_free: fnFree,
+	fn_free: ?*const FreeFn,
 
 	pub const Options = struct {
 		/// non-canvasable pd such as an inlet
@@ -142,22 +142,22 @@ pub const Class = extern struct {
 	extern fn class_free(c: *Class) void;
 
 	pub const addBang = class_addbang;
-	extern fn class_addbang(*Class, Method) void;
+	extern fn class_addbang(*Class, *const Method) void;
 
 	pub const addPointer = class_addpointer;
-	extern fn class_addpointer(*Class, Method) void;
+	extern fn class_addpointer(*Class, *const Method) void;
 
 	pub const addFloat = class_doaddfloat;
-	extern fn class_doaddfloat(*Class, Method) void;
+	extern fn class_doaddfloat(*Class, *const Method) void;
 
 	pub const addSymbol = class_addsymbol;
-	extern fn class_addsymbol(*Class, Method) void;
+	extern fn class_addsymbol(*Class, *const Method) void;
 
 	pub const addList = class_addlist;
-	extern fn class_addlist(*Class, Method) void;
+	extern fn class_addlist(*Class, *const Method) void;
 
 	pub const addAnything = class_addanything;
-	extern fn class_addanything(*Class, Method) void;
+	extern fn class_addanything(*Class, *const Method) void;
 
 	pub const setHelpSymbol = class_sethelpsymbol;
 	extern fn class_sethelpsymbol(*Class, *Symbol) void;
@@ -184,19 +184,19 @@ pub const Class = extern struct {
 	extern fn class_domainsignalin(*Class, c_uint) void;
 
 	pub const setSaveFn = class_setsavefn;
-	extern fn class_setsavefn(*Class, fnSave) void;
+	extern fn class_setsavefn(*Class, ?*const SaveFn) void;
 
 	pub const saveFn = class_getsavefn;
-	extern fn class_getsavefn(*const Class) fnSave;
+	extern fn class_getsavefn(*const Class) ?*const SaveFn;
 
 	pub const setPropertiesFn = class_setpropertiesfn;
-	extern fn class_setpropertiesfn(*Class, fnProperties) void;
+	extern fn class_setpropertiesfn(*Class, ?*const PropertiesFn) void;
 
 	pub const propertiesFn = class_getpropertiesfn;
-	extern fn class_getpropertiesfn(*const Class) fnProperties;
+	extern fn class_getpropertiesfn(*const Class) ?*const PropertiesFn;
 
 	pub const setFreeFn = class_setfreefn;
-	extern fn class_setfreefn(*Class, fnFree) void;
+	extern fn class_setfreefn(*Class, ?*const FreeFn) void;
 
 	pub fn pd(self: *Class) Error!*Pd {
 		return pd_new(self) orelse Error.ClassPd;
@@ -215,13 +215,13 @@ pub const Class = extern struct {
 
 	pub fn addMethod(
 		self: *Class,
-		meth: Method,
+		meth: *const Method,
 		sym: *Symbol,
 		comptime args: []const Atom.Type,
 	) void {
 		@call(.auto, class_addmethod, .{ self, meth, sym } ++ Atom.Type.tuple(args));
 	}
-	extern fn class_addmethod(*Class, Method, *Symbol, c_uint, ...) void;
+	extern fn class_addmethod(*Class, *const Method, *Symbol, c_uint, ...) void;
 
 	pub fn new(
 		T: type,
@@ -233,13 +233,17 @@ pub const Class = extern struct {
 	) Error!*Class {
 		// printStruct(T, name); // uncomment this to view struct field order
 		const sym: *Symbol = .gen(name.ptr);
-		const newm: NewMethod = @ptrCast(new_method);
-		const freem: Method = @ptrCast(free_method);
+		const newm: ?*const NewMethod = @ptrCast(new_method);
+		const freem: ?*const Method = @ptrCast(free_method);
 		return @call(.auto, classNew,
 			.{ sym, newm, freem, @sizeOf(T), options.toInt() } ++ Atom.Type.tuple(args)
 		) orelse Error.ClassNew;
 	}
-	extern fn class_new(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Class;
-	extern fn class_new64(*Symbol, NewMethod, Method, usize, c_uint, c_uint, ...) ?*Class;
+	extern fn class_new(
+		*Symbol, ?*const NewMethod, ?*const Method, usize, c_uint, c_uint, ...
+	) ?*Class;
+	extern fn class_new64(
+		*Symbol, ?*const NewMethod, ?*const Method, usize, c_uint, c_uint, ...
+	) ?*Class;
 	const classNew = if (@bitSizeOf(Float) == 64) class_new64 else class_new;
 };

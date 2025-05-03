@@ -11,8 +11,8 @@ pub extern const pd_compatibilitylevel: c_int;
 pub const Float = std.meta.Float(@import("options").float_size);
 pub const Sample = Float;
 
-pub const Method = ?*const fn () callconv(.c) void;
-pub const NewMethod = ?*const fn () callconv(.c) ?*anyopaque;
+pub const Method = fn () callconv(.c) void;
+pub const NewMethod = fn () callconv(.c) ?*anyopaque;
 
 pub const Class = imp.Class;
 pub const GList = cnv.GList;
@@ -136,10 +136,10 @@ pub fn addCreator(
 	new_method: ?*const NewFn(T, args),
 ) void {
 	const sym: *Symbol = .gen(name);
-	const newm: NewMethod = @ptrCast(new_method);
+	const newm: *const NewMethod = @ptrCast(new_method);
 	@call(.auto, class_addcreator, .{ newm, sym } ++ Atom.Type.tuple(args));
 }
-extern fn class_addcreator(NewMethod, *Symbol, c_uint, ...) void;
+extern fn class_addcreator(*const NewMethod, *Symbol, c_uint, ...) void;
 
 pub inline fn floatArg(idx: usize, av: []const Atom) ?Float {
 	return if (av.len > idx and av[idx].type == .float) av[idx].w.float else null;
@@ -343,10 +343,10 @@ pub const Clock = opaque {
 	}
 	extern fn clock_setunit(*Clock, f64, c_uint) void;
 
-	pub fn new(owner: *anyopaque, func: Method) Error!*Clock {
+	pub fn new(owner: *anyopaque, func: *const Method) Error!*Clock {
 		return clock_new(owner, func) orelse Error.ClockNew;
 	}
-	extern fn clock_new(*anyopaque, Method) ?*Clock;
+	extern fn clock_new(*anyopaque, *const Method) ?*Clock;
 };
 
 pub const time = clock_getlogicaltime;
@@ -367,17 +367,17 @@ extern fn clock_gettimesincewithunits(f64, f64, c_uint) f64;
 // ------------------------------------ Dsp ------------------------------------
 // -----------------------------------------------------------------------------
 pub const dsp = struct {
-	pub const PerfRoutine = ?*const fn ([*]usize) callconv(.c) [*]usize;
+	pub const PerfRoutine = fn ([*]usize) callconv(.c) [*]usize;
 
-	pub fn add(perf: PerfRoutine, args: anytype) void {
+	pub fn add(perf: *const PerfRoutine, args: anytype) void {
 		@call(.auto, dsp_add, .{ perf, @as(c_uint, @intCast(args.len)) } ++ args);
 	}
-	extern fn dsp_add(PerfRoutine, c_uint, ...) void;
+	extern fn dsp_add(*const PerfRoutine, c_uint, ...) void;
 
-	pub fn addVec(perf: PerfRoutine, vec: []usize) void {
+	pub fn addVec(perf: *const PerfRoutine, vec: []usize) void {
 		dsp_addv(perf, @intCast(vec.len), vec.ptr);
 	}
-	extern fn dsp_addv(PerfRoutine, c_uint, [*]usize) void;
+	extern fn dsp_addv(*const PerfRoutine, c_uint, [*]usize) void;
 
 	pub const addPlus = dsp_add_plus;
 	extern fn dsp_add_plus(
@@ -874,10 +874,10 @@ pub const Pd = extern struct {
 	extern fn pdgui_stub_vnew(*Pd, [*:0]const u8, *anyopaque, [*:0]const u8, ...) void;
 
 	pub const func = getfn;
-	extern fn getfn(*const Pd, *Symbol) GotFn;
+	extern fn getfn(*const Pd, *Symbol) ?*const GotFn;
 
 	pub const zFunc = zgetfn;
-	extern fn zgetfn(*const Pd, *Symbol) GotFn;
+	extern fn zgetfn(*const Pd, *Symbol) ?*const GotFn;
 
 	/// This is externally available, but note that it might later disappear; the
 	/// whole "newest" thing is a hack which needs to be redesigned.
@@ -1129,7 +1129,7 @@ pub extern var s_: Symbol;
 
 // ---------------------------------- System -----------------------------------
 // -----------------------------------------------------------------------------
-pub const GuiCallbackFn = ?*const fn (*GObj, *cnv.GList) callconv(.c) void;
+pub const GuiCallbackFn = fn (*GObj, *cnv.GList) callconv(.c) void;
 
 pub const blockSize = sys_getblksize;
 extern fn sys_getblksize() c_uint;
@@ -1149,7 +1149,9 @@ pub const pretendGuiBytes = sys_pretendguibytes;
 extern fn sys_pretendguibytes(c_uint) void;
 
 pub const queueGui = sys_queuegui;
-extern fn sys_queuegui(client: *anyopaque, glist: *cnv.GList, f: GuiCallbackFn) void;
+extern fn sys_queuegui(
+	client: *anyopaque, glist: *cnv.GList, f: ?*const GuiCallbackFn,
+) void;
 
 pub const unqueueGui = sys_unqueuegui;
 extern fn sys_unqueuegui(client: *anyopaque) void;
@@ -1272,12 +1274,16 @@ pub extern var pd_objectmaker: Pd;
 pub const canvas_maker = &pd_canvasmaker;
 pub extern var pd_canvasmaker: Pd;
 
-pub const GotFn = ?*const fn (*anyopaque, ...) callconv(.c) void;
-pub const GotFn1 = ?*const fn (*anyopaque, *anyopaque) callconv(.c) void;
-pub const GotFn2 = ?*const fn (*anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
-pub const GotFn3 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
-pub const GotFn4 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
-pub const GotFn5 = ?*const fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
+pub const GotFn = fn (*anyopaque, ...) callconv(.c) void;
+pub const GotFn1 = fn (*anyopaque, *anyopaque) callconv(.c) void;
+pub const GotFn2 = fn (*anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
+pub const GotFn3 = fn (*anyopaque, *anyopaque, *anyopaque, *anyopaque) callconv(.c) void;
+pub const GotFn4 = fn (
+	*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque,
+) callconv(.c) void;
+pub const GotFn5 = fn (
+	*anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque, *anyopaque,
+) callconv(.c) void;
 
 pub const nullFn = nullfn;
 extern fn nullfn() void;

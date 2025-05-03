@@ -45,18 +45,18 @@ const DrawMode = enum(c_uint) {
 	io,
 };
 
-pub const FunPtr = ?*const fn (*anyopaque, *GList, DrawMode) callconv(.c) void;
-pub const DrawFunPtr = ?*const fn (*anyopaque, *GList) callconv(.c) void;
+pub const IemFn = fn (*anyopaque, *GList, DrawMode) callconv(.c) void;
+pub const DrawFn = fn (*anyopaque, *GList) callconv(.c) void;
 const Private = opaque {};
 
 pub const DrawFunctions = extern struct {
-	new: DrawFunPtr = null,
-	config: DrawFunPtr = null,
-	iolets: FunPtr = null,
-	update: DrawFunPtr = null,
-	select: DrawFunPtr = null,
-	erase: DrawFunPtr = null,
-	move: DrawFunPtr = null,
+	new: ?*const DrawFn = null,
+	config: ?*const DrawFn = null,
+	iolets: ?*const IemFn = null,
+	update: ?*const DrawFn = null,
+	select: ?*const DrawFn = null,
+	erase: ?*const DrawFn = null,
+	move: ?*const DrawFn = null,
 };
 
 pub const FontStyleFlags = packed struct(c_uint) {
@@ -121,7 +121,7 @@ pub const Gui = extern struct {
 
 	obj: Object,
 	glist: *GList,
-	draw: FunPtr,
+	draw: ?*const IemFn,
 	h: c_uint,
 	w: c_uint,
 	private: *Private,

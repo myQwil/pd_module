@@ -3,7 +3,7 @@ const pd = @import("pd.zig");
 const Float = pd.Float;
 const Sample = pd.Sample;
 
-pub const PrintHook = ?*const fn ([*:0]const u8) callconv(.c) void;
+pub const PrintHook = fn ([*:0]const u8) callconv(.c) void;
 
 pub extern var sys_printtostderr: c_uint;
 pub extern var sys_verbose: c_uint;
@@ -52,7 +52,7 @@ pub const Instance = extern struct {
 	/// obsolete - included for GEM??
 	time_per_dsp_tick: f64,
 	/// set this to override per-instance printing
-	printhook: PrintHook,
+	printhook: ?*const PrintHook,
 	/// optional implementation-specific data for libpd, etc
 	impdata: ?*anyopaque,
 };
