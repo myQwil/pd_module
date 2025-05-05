@@ -549,130 +549,37 @@ pub const Inlet = opaque {
 // ---------------------------------- Memory -----------------------------------
 // -----------------------------------------------------------------------------
 const Allocator = std.mem.Allocator;
+const Alignment = std.mem.Alignment;
 
-const PdAllocator = struct {
-	const builtin = @import("builtin");
-	const Alignment = std.mem.Alignment;
-	extern fn getbytes(usize) ?*anyopaque;
-	extern fn freebytes(*anyopaque, usize) void;
+fn alloc(_: *anyopaque, len: usize, _: Alignment, _: usize) ?[*]u8 {
+	std.debug.assert(len > 0);
+	return @ptrCast(getbytes(len));
+}
+extern fn getbytes(usize) ?*anyopaque;
 
-	const vtable: Allocator.VTable = .{
-		.alloc = alloc,
-		.resize = resize,
-		.remap = remap,
-		.free = free,
-	};
+fn resize(_: *anyopaque, buf: []u8, _: Alignment, new_len: usize, _: usize) bool {
+	return (new_len <= buf.len);
+}
 
-	const malloc_size = if (@TypeOf(std.c.malloc_size) != void) std.c.malloc_size
-	else if (@TypeOf(std.c.malloc_usable_size) != void) std.c.malloc_usable_size
-	else if (@TypeOf(std.c._msize) != void) std.c._msize
-	else {};
+fn remap(_: *anyopaque, buf: []u8, _: Alignment, new_len: usize, _: usize) ?[*]u8 {
+	return if (new_len <= buf.len) buf.ptr else null;
+}
 
-	const supports_posix_memalign = switch (builtin.os.tag) {
-		.dragonfly, .netbsd, .freebsd, .solaris, .openbsd, .linux,
-		.macos, .ios, .tvos, .watchos, .visionos => true,
-		else => false,
-	};
+fn free(_: *anyopaque, buf: []u8, _: Alignment, _: usize) void {
+	freebytes(buf.ptr, buf.len);
+}
+extern fn freebytes(*anyopaque, usize) void;
 
-	fn getHeader(ptr: [*]u8) *[*]u8 {
-		return @alignCast(@ptrCast(ptr - @sizeOf(usize)));
-	}
-
-	fn alignedAlloc(len: usize, alignment: Alignment) ?[*]u8 {
-		const alignment_bytes = alignment.toByteUnits();
-		if (supports_posix_memalign) {
-			// The posix_memalign only accepts alignment values that are a
-			// multiple of the pointer size
-			const effective_alignment = @max(alignment_bytes, @sizeOf(usize));
-
-			var aligned_ptr: ?*anyopaque = undefined;
-			if (std.c.posix_memalign(&aligned_ptr, effective_alignment, len) != 0)
-				return null;
-
-			return @ptrCast(aligned_ptr);
-		}
-
-		// Thin wrapper around regular malloc, overallocate to account for
-		// alignment padding and store the original malloc()'ed pointer before
-		// the aligned address.
-		const ptr = getbytes(len + alignment_bytes - 1 + @sizeOf(usize));
-		const unaligned_ptr = @as([*]u8, @ptrCast(ptr orelse return null));
-		const unaligned_addr = @intFromPtr(unaligned_ptr);
-		const aligned_addr = std.mem.alignForward(usize,
-			unaligned_addr + @sizeOf(usize), alignment_bytes);
-		const aligned_ptr = unaligned_ptr + (aligned_addr - unaligned_addr);
-		getHeader(aligned_ptr).* = unaligned_ptr;
-
-		return aligned_ptr;
-	}
-
-	fn alloc(
-		_: *anyopaque,
-		len: usize,
-		alignment: Alignment,
-		return_address: usize,
-	) ?[*]u8 {
-		_ = return_address;
-		std.debug.assert(len > 0);
-		return alignedAlloc(len, alignment);
-	}
-
-	fn alignedAllocSize(ptr: [*]u8) usize {
-		if (supports_posix_memalign) {
-			return malloc_size(ptr);
-		}
-
-		const unaligned_ptr = getHeader(ptr).*;
-		const delta = @intFromPtr(ptr) - @intFromPtr(unaligned_ptr);
-		return malloc_size(unaligned_ptr) - delta;
-	}
-
-	fn resize(
-		_: *anyopaque,
-		buf: []u8,
-		alignment: Alignment,
-		new_len: usize,
-		return_address: usize,
-	) bool {
-		_ = alignment;
-		_ = return_address;
-		return new_len <= buf.len
-			or (@TypeOf(malloc_size) != void and new_len <= alignedAllocSize(buf.ptr));
-	}
-
-	fn remap(
-		context: *anyopaque,
-		memory: []u8,
-		alignment: Alignment,
-		new_len: usize,
-		return_address: usize,
-	) ?[*]u8 {
-		// realloc would potentially return a new allocation that does not
-		// respect the original alignment.
-		return if (resize(context, memory, alignment, new_len, return_address))
-			memory.ptr else null;
-	}
-
-	fn free(
-		_: *anyopaque,
-		buf: []u8,
-		alignment: Alignment,
-		return_address: usize,
-	) void {
-		_ = alignment;
-		_ = return_address;
-		if (supports_posix_memalign) {
-			return freebytes(buf.ptr, buf.len);
-		}
-
-		const unaligned_ptr = getHeader(buf.ptr).*;
-		freebytes(unaligned_ptr, buf.len);
-	}
+const mem_vtable = Allocator.VTable{
+	.alloc = alloc,
+	.resize = resize,
+	.remap = remap,
+	.free = free,
 };
 
 pub const mem = Allocator{
 	.ptr = undefined,
-	.vtable = &PdAllocator.vtable,
+	.vtable = &mem_vtable,
 };
 
 
